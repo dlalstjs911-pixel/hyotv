@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scaleable=no">
+  <title>효TV - 스마트폰 가상 리모컨</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 스마트폰 전용 리모컨 레이아웃 스타일 */
+    body {
+      background-color: #121826;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .remote-container {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .remote-header {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .remote-header h1 {
+      font-size: 1.25rem;
+      margin: 0 0 6px 0;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .remote-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.825rem;
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    /* 음성 명령 마이크 카드 */
+    .voice-control-card {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mic-button {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: none;
+      color: #2563eb;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s, background-color 0.2s, color 0.2s;
+    }
+
+    .mic-button:active {
+      transform: scale(0.92);
+    }
+
+    .mic-button.listening {
+      background: #ef4444;
+      color: #ffffff;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .voice-hint {
+      font-size: 0.875rem;
+      color: #e0f2fe;
+      margin: 0;
+    }
+
+    /* 리모컨 구역 공통 카드 */
+    .remote-section {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .btn-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-grid-1 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .remote-btn {
+      padding: 16px 12px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.1s, opacity 0.2s;
+      color: #ffffff;
+    }
+
+    .remote-btn:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
+
+    /* 버튼 색상 정의 */
+    .btn-morning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+    .btn-med-take {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    .btn-med-snooze {
+      background: linear-gradient(135deg, #64748b, #475569);
+    }
+    .btn-call-accept {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+    .btn-call-decline {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    .btn-call-hangup {
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      grid-column: span 2;
+    }
+
+    /* TV 화면 페이지 이동 버튼 */
+    .page-nav-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .btn-nav-small {
+      padding: 10px 4px;
+      background: #334155;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .btn-nav-small:active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    /* 하단 실행 피드백 토스트 */
+    #remote-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    #remote-toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="remote-container">
+    <!-- 헤더 영역 -->
+    <header class="remote-header">
+      <h1>📺 효TV 가상 리모컨</h1>
+      <div class="remote-status-badge">
+        <div class="status-dot"></div>
+        <span id="connection-status">TV 화면 연동됨</span>
+      </div>
+    </header>
+
+    <!-- 🎙️ 시니어 음성 명령 카탈로그 -->
+    <div class="voice-control-card">
+      <button id="mic-btn" class="mic-button" onclick="toggleVoiceRecognition()">
+        🎙️
+      </button>
+      <p class="voice-hint" id="voice-hint-text">
+        마이크 버튼을 누르고 <strong>"잘 잤어"</strong>, <strong>"먹었어"</strong>, <strong>"수락"</strong>을 말씀해보세요
+      </p>
+    </div>
+
+    <!-- 1. 🌅 아침 인사 제어 -->
+    <div class="remote-section">
+      <div class="section-title">🌅 아침 인사 응답</div>
+      <div class="btn-grid-1">
+        <button class="remote-btn btn-morning" onclick="sendAction('MORNING_REPLY')">
+          <span>😊 "잘 잤어" 응답 전송</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. 💊 복약 알림 제어 -->
+    <div class="remote-section">
+      <div class="section-title">💊 복약 알림 제어</div>
+      <div class="btn-grid-2">
+        <button class="remote-btn btn-med-take" onclick="sendAction('MED_TAKEN')">
+          <span>✅ 먹었어</span>
+        </button>
+        <button class="remote-btn btn-med-snooze" onclick="sendAction('MED_SNOOZE')">
+          <span>⏰ 나중에</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. 📞 영상통화 제어 -->
+    <div class="remote-section">
+      <div class="section-title">📞 영상통화 제어</div>
+      <div class="btn-grid-2">
+        <button class="remote-btn btn-call-accept" onclick="sendAction('CALL_ACCEPT')">
+          <span>📞 수락</span>
+        </button>
+        <button class="remote-btn btn-call-decline" onclick="sendAction('CALL_DECLINE')">
+          <span>❌ 거절</span>
+        </button>
+        <button class="remote-btn btn-call-hangup" onclick="sendAction('CALL_END')">
+          <span>🔴 통화 종료</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. 📺 TV 화면 페이지 전환 제어 -->
+    <div class="remote-section">
+      <div class="section-title">📺 TV 화면 이동</div>
+      <div class="page-nav-grid">
+        <button class="btn-nav-small" onclick="sendAction('NAV_OVERVIEW')">소개</button>
+        <button class="btn-nav-small" onclick="sendAction('NAV_MORNING')">아침인사</button>
+        <button class="btn-nav-small" onclick="sendAction('NAV_MEDICATION')">복약알림</button>
+        <button class="btn-nav-small" onclick="sendAction('NAV_VIDEOCALL')">영상통화</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="remote-toast">신호가 TV로 전송되었습니다!</div>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="js/remote.js"></script>
+</body>
+</html>

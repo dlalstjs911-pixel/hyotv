@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>효TV - 개인화 복약 알림</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="tv-screen">
+    <!-- 상단 네비게이션 컨트롤러 -->
+    <nav class="tv-nav">
+      <a href="index.html" class="tv-nav-item"><span class="key-badge">Home</span> 전체보기</a>
+      <a href="morning.html" class="tv-nav-item"><span class="key-badge">1</span> 아침 인사</a>
+      <a href="medication.html" class="tv-nav-item active"><span class="key-badge">2</span> 복약 알림</a>
+      <a href="videocall.html" class="tv-nav-item"><span class="key-badge">3</span> 영상통화 수신</a>
+    </nav>
+
+    <!-- 메인 화면 -->
+    <main class="screen-medication">
+      <div class="medication-card">
+        <div class="medication-content">
+          <h1 class="medication-title">엄마 약 먹었어?</h1>
+          
+          <div class="medication-time">
+            <div class="wave-icon">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+            <span>10:45</span>
+            <div class="wave-icon">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+
+          <div class="medication-buttons">
+            <button class="btn-medication primary">
+              <div class="btn-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <span>먹었어</span>
+            </button>
+
+            <button class="btn-medication secondary">
+              <div class="btn-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <span>나중에 먹을게</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="medication-image-container">
+          <img src="assets/images/medication_pills.png" alt="복약 알약">
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

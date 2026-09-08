@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>효TV - 아침 인사 화면</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="tv-screen">
+    <!-- 상단 네비게이션 컨트롤러 -->
+    <nav class="tv-nav">
+      <a href="index.html" class="tv-nav-item"><span class="key-badge">Home</span> 전체보기</a>
+      <a href="morning.html" class="tv-nav-item active"><span class="key-badge">1</span> 아침 인사</a>
+      <a href="medication.html" class="tv-nav-item"><span class="key-badge">2</span> 복약 알림</a>
+      <a href="videocall.html" class="tv-nav-item"><span class="key-badge">3</span> 영상통화 수신</a>
+    </nav>
+
+    <!-- 메인 화면 -->
+    <main class="screen-morning">
+      <div class="morning-modal">
+        <div class="morning-badge-wrapper">
+          <div class="morning-heart-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+          <span class="morning-badge-text">새 메시지</span>
+        </div>
+
+        <h1 class="morning-title">엄마 잘 잤어요? 좋은 아침이에요!</h1>
+        <p class="morning-subtext">리모컨의 '1'번을 눌러 확인해주세요.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

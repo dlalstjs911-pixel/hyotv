@@ -1,4 +1,4 @@
-// 효TV 스마트폰 가상 리모컨 스크립트 (고감도 Push-to-Talk 음성 인식 복원)
+// 효TV 스마트폰 가상 리모컨 스크립트 (아이폰 iOS Safari 마이크 세션 호환성 최적화)
 
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
@@ -8,11 +8,9 @@ broadcastChannel.onmessage = (event) => {
   if (event.data && event.data.action === 'POPUP_OPENED') {
     console.log('[Remote] TV 팝업 오픈 신호 수신 -> 마이크 자동 작동!');
     showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
-    if (!isListening) {
-      setTimeout(() => {
-        toggleVoiceRecognition();
-      }, 400);
-    }
+    setTimeout(() => {
+      startVoiceRecognitionFresh();
+    }, 300);
   }
 };
 
@@ -55,9 +53,7 @@ function connectToTV(tvPeerId) {
     peerConnection.on('data', (data) => {
       if (data && data.action === 'POPUP_OPENED') {
         showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
-        if (!isListening) {
-          setTimeout(() => { toggleVoiceRecognition(); }, 400);
-        }
+        setTimeout(() => { startVoiceRecognitionFresh(); }, 300);
       }
     });
   });
@@ -118,12 +114,12 @@ function updateStatusBadge(text, color) {
 }
 
 // ----------------------------------------------------
-// 🎙️ 고감도 원터치 Push-to-Talk 음성 인식 (가장 정확하고 안정적)
+// 🎙️ 아이폰 iOS Safari 호환 고감도 신규 세션 음성 인식
 // ----------------------------------------------------
 let recognition = null;
 let isListening = false;
 
-function initVoiceRecognition() {
+function startVoiceRecognitionFresh() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
@@ -131,72 +127,72 @@ function initVoiceRecognition() {
     return;
   }
 
-  recognition = new SpeechRecognition();
-  recognition.lang = 'ko-KR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
+  // 기존 인스턴스 찌꺼기 완벽 정돈
+  if (recognition) {
+    try { recognition.abort(); } catch (e) {}
+    recognition = null;
+  }
 
-  recognition.onstart = () => {
-    isListening = true;
-    console.log('[Remote STT] 마이크 활성화됨');
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) {
-      micBtn.classList.add('listening');
-      micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
-    }
-  };
+  try {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ko-KR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-  recognition.onend = () => {
-    isListening = false;
-    console.log('[Remote STT] 마이크 세션 종료');
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) {
-      micBtn.classList.remove('listening');
-      micBtn.innerHTML = '<span>🎙️ 말하기</span>';
-    }
-  };
+    recognition.onstart = () => {
+      isListening = true;
+      console.log('[Remote STT] 마이크 신규 세션 활성화됨');
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) {
+        micBtn.classList.add('listening');
+        micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
+      }
+    };
 
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    console.log('[Remote STT] 인식된 음성:', transcript);
-    showRemoteToast(`🎙️ 인식됨: "${transcript}"`);
-    handleVoiceCommand(transcript);
-  };
+    recognition.onend = () => {
+      isListening = false;
+      console.log('[Remote STT] 마이크 세션 종료');
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) {
+        micBtn.classList.remove('listening');
+        micBtn.innerHTML = '<span>🎙️ 말하기</span>';
+      }
+    };
 
-  recognition.onerror = (event) => {
-    console.warn('[Remote STT 오류]:', event.error);
-    isListening = false;
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) {
-      micBtn.classList.remove('listening');
-      micBtn.innerHTML = '<span>🎙️ 말하기</span>';
-    }
-    if (event.error === 'not-allowed') {
-      showRemoteToast('⚠️ 주소창 왼쪽 자물쇠를 눌러 마이크 허용으로 변경해주세요!');
-    } else if (event.error === 'no-speech') {
-      showRemoteToast('⚠️ 음성이 감지되지 않았습니다. 다시 누르고 말씀해주세요.');
-    }
-  };
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.trim();
+      console.log('[Remote STT] 인식된 음성:', transcript);
+      showRemoteToast(`🎙️ 인식됨: "${transcript}"`);
+      handleVoiceCommand(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('[Remote STT 오류]:', event.error);
+      isListening = false;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) {
+        micBtn.classList.remove('listening');
+        micBtn.innerHTML = '<span>🎙️ 말하기</span>';
+      }
+      if (event.error === 'not-allowed') {
+        showRemoteToast('⚠️ 주소창 왼쪽 aA 버튼을 눌러 마이크 권한을 [허용]으로 설정해주세요!');
+      } else if (event.error === 'no-speech') {
+        showRemoteToast('⚠️ 음성이 감지되지 않았습니다. 버튼을 다시 누르고 말씀해 주세요.');
+      }
+    };
+
+    recognition.start();
+  } catch (err) {
+    console.error('[Remote STT] 시작 예외:', err);
+  }
 }
 
 function toggleVoiceRecognition() {
-  if (!recognition) {
-    initVoiceRecognition();
-  }
-  if (!recognition) return;
-
-  if (isListening) {
-    try {
-      recognition.stop();
-    } catch (e) {}
+  if (isListening && recognition) {
+    try { recognition.stop(); } catch (e) {}
+    isListening = false;
   } else {
-    try {
-      recognition.start();
-    } catch (e) {
-      console.warn('[Remote STT] 마이크 재시도:', e);
-      initVoiceRecognition();
-      try { recognition.start(); } catch (err) {}
-    }
+    startVoiceRecognitionFresh();
   }
 }
 
@@ -235,5 +231,4 @@ function handleVoiceCommand(text) {
 
 window.addEventListener('DOMContentLoaded', () => {
   initPeerJS();
-  initVoiceRecognition();
 });

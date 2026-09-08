@@ -3,6 +3,19 @@
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
 
+// TV에서 팝업이 뜨면 자동으로 마이크(말하기 버튼) 켜기!
+broadcastChannel.onmessage = (event) => {
+  if (event.data && event.data.action === 'POPUP_OPENED') {
+    console.log('[Remote] TV 팝업 오픈 신호 수신 -> 마이크 자동 작동!');
+    showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
+    if (!isListening) {
+      setTimeout(() => {
+        toggleVoiceRecognition();
+      }, 400);
+    }
+  }
+};
+
 // 2. 서로 다른 기기(휴대폰 <-> PC 모니터) 간 WebRTC P2P연동을 위한 PeerJS
 let peer = null;
 let peerConnection = null;
@@ -38,6 +51,15 @@ function connectToTV(tvPeerId) {
     console.log('[Remote] TV 모니터와 P2P 연결 성공!');
     updateStatusBadge('TV 모니터와 1:1 라이브 연동됨! 🟢', '#22c55e');
     showRemoteToast('📺 TV 화면과 실시간 연결되었습니다!');
+
+    peerConnection.on('data', (data) => {
+      if (data && data.action === 'POPUP_OPENED') {
+        showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
+        if (!isListening) {
+          setTimeout(() => { toggleVoiceRecognition(); }, 400);
+        }
+      }
+    });
   });
 
   peerConnection.on('close', () => {

@@ -104,6 +104,7 @@ function triggerMedicationNotice() {
     
     setTimeout(() => {
       speakMedicationNotice();
+      sendPopupOpenedSignal('medication');
     }, 500);
   }, 3000);
 }
@@ -130,6 +131,7 @@ function triggerVideoCallNotice() {
       countdownBadge.style.opacity = '0';
     }
     showToast('📞 [영상통화 수신] 딸 지영이에게 걸려온 영상통화입니다!', '📞');
+    sendPopupOpenedSignal('videocall');
   }, 3000);
 }
 
@@ -366,6 +368,7 @@ function switchPage(pageId) {
     const win = document.getElementById('morning-dialog-window');
     if (win) win.classList.remove('hide-dialog');
     speakMorningGreeting();
+    sendPopupOpenedSignal('morning');
   } else if (pageId === 'medication') {
     triggerMedicationNotice();
   } else if (pageId === 'videocall') {
@@ -621,6 +624,15 @@ function handleRemoteAction(action) {
       console.warn('[TV Listener] 알 수 없는 액션:', action);
       break;
   }
+}
+
+function sendPopupOpenedSignal(popupType) {
+  const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
+  broadcastChannel.postMessage({
+    action: 'POPUP_OPENED',
+    popupType: popupType,
+    timestamp: Date.now()
+  });
 }
 
 // ----------------------------------------------------

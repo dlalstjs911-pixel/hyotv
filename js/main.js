@@ -634,8 +634,8 @@ function initTvVoiceRecognition() {
 
   tvRecognition = new SpeechRecognition();
   tvRecognition.lang = 'ko-KR';
-  tvRecognition.continuous = false;
-  tvRecognition.interimResults = false;
+  tvRecognition.continuous = true;
+  tvRecognition.interimResults = true;
 
   tvRecognition.onend = () => {
     setTimeout(() => {
@@ -644,13 +644,17 @@ function initTvVoiceRecognition() {
           tvRecognition.start();
         } catch (e) {}
       }
-    }, 400);
+    }, 200);
   };
 
   tvRecognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    console.log('[TV STT] 음성 수신:', transcript);
-    handleTvVoiceCommand(transcript);
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const transcript = event.results[i][0].transcript.trim();
+      if (transcript) {
+        console.log('[TV STT 음성 수신]:', transcript);
+        handleTvVoiceCommand(transcript);
+      }
+    }
   };
 
   tvRecognition.onerror = (err) => {};

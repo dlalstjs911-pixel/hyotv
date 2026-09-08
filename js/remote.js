@@ -1,4 +1,4 @@
-// 효TV 스마트폰 가상 리모컨 스크립트 (항시 자동 음성 감지 적용)
+// 효TV 스마트폰 가상 리모컨 스크립트 (맥북 마이크 실시간 반응 개선)
 
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
@@ -96,31 +96,35 @@ function updateStatusBadge(text, color) {
 }
 
 // ----------------------------------------------------
-// 🎙️ 시니어 항시 자동 음성 감지 (Always-Listening STT)
+// 🎙️ 맥북/스마트폰 마이크 실시간 감지 (High-Sensitivity STT)
 // ----------------------------------------------------
 let recognition = null;
-let isAutoListening = true; // 항시 자동 감지 모드 활성화
+let isAutoListening = true;
+let lastCommandTime = 0;
 
 function initVoiceRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
-    console.warn('[Remote STT] 브라우저 음성 인식 미지원');
-    const micBtn = document.getElementById('mic-btn');
-    if (micBtn) micBtn.innerHTML = '<span>🎙️ 음성미지원</span>';
+    showRemoteToast('⚠️ 이 브라우저는 마이크 음성 인식을 지원하지 않습니다.');
     return;
   }
 
+  try {
+    if (recognition) recognition.stop();
+  } catch(e) {}
+
   recognition = new SpeechRecognition();
   recognition.lang = 'ko-KR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.continuous = true;
+  recognition.interimResults = true; // 실시간 발화 중간 단어 즉시 수신!
 
   recognition.onstart = () => {
+    console.log('[Remote STT] 마이크 실시간 감지 시작');
     const micBtn = document.getElementById('mic-btn');
     if (micBtn && isAutoListening) {
       micBtn.classList.add('listening');
-      micBtn.innerHTML = '<span>🎙️ 음성 듣는 중...</span>';
+      micBtn.innerHTML = '<span>🔴 마이크 감지 중...</span>';
     }
   };
 
@@ -129,41 +133,53 @@ function initVoiceRecognition() {
     if (!isAutoListening) {
       if (micBtn) {
         micBtn.classList.remove('listening');
-        micBtn.innerHTML = '<span>🎙️ 음성일시정지</span>';
+        micBtn.innerHTML = '<span>🎙️ 마이크 (일시정지)</span>';
       }
       return;
     }
 
-    // 끊기지 않고 상시 자동으로 다시 듣는 루프
+    // 마이크 끊기면 0.2초 후 즉시 자동 재시작
     setTimeout(() => {
       if (isAutoListening && recognition) {
         try {
           recognition.start();
-        } catch (e) {
-          // 이미 시작된 경우 예외 무시
-        }
+        } catch (e) {}
       }
-    }, 300);
+    }, 200);
   };
 
   recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    console.log('[Remote STT] 항시 자동 감지된 음성:', transcript);
-    showRemoteToast(`🎙️ 음성 감지: "${transcript}"`);
-    handleVoiceCommand(transcript);
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const transcript = event.results[i][0].transcript.trim();
+      console.log('[Remote STT 감지]:', transcript);
+      
+      if (transcript.length > 0) {
+        showRemoteToast(`🎙️ 감지됨: "${transcript}"`);
+        
+        // 동일 명령어 1초 이내 중복 실행 방지
+        const now = Date.now();
+        if (now - lastCommandTime > 1200) {
+          const matched = handleVoiceCommand(transcript);
+          if (matched) {
+            lastCommandTime = now;
+          }
+        }
+      }
+    }
   };
 
   recognition.onerror = (event) => {
-    console.warn('[Remote STT] 감지 대기 중:', event.error);
+    console.warn('[Remote STT Error]:', event.error);
+    if (event.error === 'not-allowed') {
+      showRemoteToast('⚠️ 주소창 왼쪽 자물쇠 아이콘을 눌러 마이크 권한을 [허용]으로 변경해주세요!');
+    }
   };
 
-  // 페이지 로드 시 즉시 자동 듣기 시작
   try {
     recognition.start();
   } catch (e) {}
 }
 
-// 파란색 마이크 버튼 클릭 시 음성 자동 감지 켜기/일시정지 토글
 function toggleVoiceRecognition() {
   if (!recognition) {
     initVoiceRecognition();
@@ -174,15 +190,15 @@ function toggleVoiceRecognition() {
 
   const micBtn = document.getElementById('mic-btn');
   if (isAutoListening) {
-    showRemoteToast('🎙️ 음성 자동 감지가 켜졌습니다!');
+    showRemoteToast('🎙️ 마이크 감지가 활성화되었습니다!');
     try {
       recognition.start();
     } catch (e) {}
   } else {
-    showRemoteToast('⏸️ 음성 자동 감지가 일시정지되었습니다.');
+    showRemoteToast('⏸️ 마이크 감지가 일시정지되었습니다.');
     if (micBtn) {
       micBtn.classList.remove('listening');
-      micBtn.innerHTML = '<span>🎙️ 음성일시정지</span>';
+      micBtn.innerHTML = '<span>🎙️ 마이크 (일시정지)</span>';
     }
     try {
       recognition.stop();
@@ -196,19 +212,21 @@ function handleVoiceCommand(text) {
 
   // 🚨 119 긴급 명령 (119 / 구조 / 응급 / 도와줘)
   if (
-    lower.includes('119') || lower.includes('구조') || lower.includes('응급') ||
-    lower.includes('도와줘') || lower.includes('살려')
+    lower.includes('119') || lower.includes('일일구') || lower.includes('백십구') ||
+    lower.includes('구조') || lower.includes('응급') || lower.includes('도와') || lower.includes('살려')
   ) {
     sendAction('BTN_119');
+    return true;
   }
   // 🟢 초록 계열 명령 (확인 / 수락 / 먹었어 / 잘 잤어 / 네 / 오 / 긍정)
   else if (
-    lower.includes('먹었') || lower.includes('약 먹') || 
+    lower.includes('먹었') || lower.includes('약 먹') || lower.includes('먹었어') ||
     lower.includes('수락') || lower.includes('받아') || lower.includes('여보세요') ||
     lower.includes('잘 잤') || lower.includes('안녕') || lower.includes('좋은 아침') ||
     lower.includes('네') || lower.includes('예') || lower.includes('오')
   ) {
     sendAction('BTN_GREEN');
+    return true;
   } 
   // 🔴 빨강 계열 명령 (거절 / 나중에 / 종료 / 아니 / 엑스 / 닫기)
   else if (
@@ -218,7 +236,10 @@ function handleVoiceCommand(text) {
     lower.includes('아니') || lower.includes('엑스')
   ) {
     sendAction('BTN_RED');
+    return true;
   }
+
+  return false;
 }
 
 window.addEventListener('DOMContentLoaded', () => {

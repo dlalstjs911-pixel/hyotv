@@ -690,11 +690,11 @@ function initTvVoiceRecognition() {
 
 function handleTvVoiceCommand(text) {
   const lower = text.toLowerCase();
-  if (lower.includes('119') || lower.includes('구조') || lower.includes('응급') || lower.includes('도와줘')) {
+  if (lower.includes('119') || lower.includes('일일구') || lower.includes('긴급 구조') || lower.includes('도와줘')) {
     handleRemoteAction('BTN_119');
-  } else if (lower.includes('먹었') || lower.includes('약 먹') || lower.includes('수락') || lower.includes('잘 잤') || lower.includes('네') || lower.includes('예')) {
+  } else if (lower.includes('먹었어') || lower.includes('약 먹었어') || lower.includes('먹었다') || lower.includes('수락') || lower.includes('잘 잤어') || lower.includes('좋은 아침')) {
     handleRemoteAction('BTN_GREEN');
-  } else if (lower.includes('나중에') || lower.includes('거절') || lower.includes('종료') || lower.includes('아니')) {
+  } else if (lower.includes('나중에') || lower.includes('이따가') || lower.includes('거절') || lower.includes('통화 종료')) {
     handleRemoteAction('BTN_RED');
   }
 }

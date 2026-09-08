@@ -200,34 +200,32 @@ function toggleVoiceRecognition() {
   }
 }
 
-// 🟢 초록(O) / 🔴 빨강(X) / 🚨 119 신호 자동 매핑
+// 🟢 초록(O) / 🔴 빨강(X) / 🚨 119 신호 정밀 매핑 (노이즈 오작동 방지)
 function handleVoiceCommand(text) {
   const lower = text.toLowerCase();
 
-  // 🚨 119 긴급 명령 (119 / 구조 / 응급 / 도와줘)
+  // 🚨 119 긴급 명령 (119 / 일일구 / 긴급 구조 / 도와줘)
   if (
     lower.includes('119') || lower.includes('일일구') || lower.includes('백십구') ||
-    lower.includes('구조') || lower.includes('응급') || lower.includes('도와') || lower.includes('살려')
+    lower.includes('긴급 구조') || lower.includes('도와줘') || lower.includes('살려줘')
   ) {
     sendAction('BTN_119');
     return true;
   }
-  // 🟢 초록 계열 명령 (확인 / 수락 / 먹었어 / 잘 잤어 / 네 / 오 / 긍정)
+  // 🟢 초록 계열 명확한 긍정 명령 ("먹었어", "약 먹었어", "수락", "잘 잤어")
   else if (
-    lower.includes('먹었') || lower.includes('약 먹') || lower.includes('먹었어') ||
-    lower.includes('수락') || lower.includes('받아') || lower.includes('여보세요') ||
-    lower.includes('잘 잤') || lower.includes('안녕') || lower.includes('좋은 아침') ||
-    lower.includes('네') || lower.includes('예') || lower.includes('오')
+    lower.includes('먹었어') || lower.includes('약 먹었어') || lower.includes('먹었다') || lower.includes('약 먹었다') ||
+    lower.includes('수락') || lower.includes('전화 받아') || lower.includes('여보세요') ||
+    lower.includes('잘 잤어') || lower.includes('좋은 아침')
   ) {
     sendAction('BTN_GREEN');
     return true;
   } 
-  // 🔴 빨강 계열 명령 (거절 / 나중에 / 종료 / 아니 / 엑스 / 닫기)
+  // 🔴 빨강 계열 명확한 거절/종료 명령 ("나중에", "이따가", "거절", "통화 종료")
   else if (
-    lower.includes('나중에') || lower.includes('이따') || lower.includes('연기') ||
-    lower.includes('거절') || lower.includes('안 받') ||
-    lower.includes('종료') || lower.includes('통화 종료') || lower.includes('끊어') || lower.includes('닫기') ||
-    lower.includes('아니') || lower.includes('엑스')
+    lower.includes('나중에') || lower.includes('이따가') || lower.includes('복약 연기') ||
+    lower.includes('거절') || lower.includes('안 받아') ||
+    lower.includes('통화 종료') || lower.includes('통화종료') || lower.includes('전화 끊어')
   ) {
     sendAction('BTN_RED');
     return true;

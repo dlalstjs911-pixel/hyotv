@@ -130,7 +130,7 @@ function initVoiceRecognition() {
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
       micBtn.classList.remove('listening');
-      micBtn.innerHTML = '<span>🎙️ 마이크</span>';
+      micBtn.innerHTML = '<span>🎙️ 말하기</span>';
     }
   };
 
@@ -147,7 +147,7 @@ function initVoiceRecognition() {
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
       micBtn.classList.remove('listening');
-      micBtn.innerHTML = '<span>🎙️ 마이크</span>';
+      micBtn.innerHTML = '<span>🎙️ 말하기</span>';
     }
     if (event.error === 'not-allowed') {
       showRemoteToast('⚠️ 주소창 왼쪽 자물쇠를 눌러 마이크 허용으로 변경해주세요!');

@@ -27,7 +27,7 @@
       gap: 16px;
     }
 
-    /* 상단 슬림 헤더 (높이 2/3로 축소 + 큰 흰색 글씨 '효TV') */
+    /* 상단 슬림 헤더 */
     .remote-header {
       background: linear-gradient(135deg, #1e293b, #0f172a);
       border: 1px solid #334155;
@@ -69,7 +69,7 @@
       box-shadow: 0 0 6px #22c55e;
     }
 
-    /* 🟢🔴🔵⚪ 메인 4종 대형 리모컨 버튼 레이아웃 */
+    /* 🟢🔴🟡⚪ 메인 4종 대형 리모컨 버튼 레이아웃 */
     .hero-buttons-container {
       display: flex;
       flex-direction: column;
@@ -115,11 +115,11 @@
       line-height: 1;
     }
 
-    /* 3. 파랑 버튼: 마이크 */
-    .btn-blue-main {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: 3px solid #60a5fa;
-      color: #ffffff;
+    /* 3. 노란색 버튼(#FFCC00): 말하기 */
+    .btn-yellow-main {
+      background: linear-gradient(135deg, #ffcc00, #e6b800);
+      border: 3px solid #ffe066;
+      color: #0f172a;
       font-size: 3rem;
       font-weight: 900;
       display: flex;
@@ -127,9 +127,10 @@
       gap: 10px;
     }
 
-    .btn-blue-main.listening {
+    .btn-yellow-main.listening {
       background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
       border-color: #fca5a5 !important;
+      color: #ffffff !important;
       animation: pulse 1.2s infinite;
     }
 
@@ -190,7 +191,7 @@
       </div>
     </header>
 
-    <!-- 🟢🔴🔵⚪ 메인 4종 대형 리모컨 버튼 (O, X, 🎙️ 마이크, 🚨 119) -->
+    <!-- 🟢🔴🟡⚪ 메인 4종 대형 리모컨 버튼 (O, X, 🎙️ 말하기, 🚨 119) -->
     <div class="hero-buttons-container">
       <!-- 1. 초록 버튼: O -->
       <button class="large-remote-btn btn-green-main" onclick="sendAction('BTN_GREEN')">
@@ -202,9 +203,9 @@
         <span>X</span>
       </button>
 
-      <!-- 3. 파랑 버튼: 마이크 -->
-      <button id="mic-btn" class="large-remote-btn btn-blue-main" onclick="toggleVoiceRecognition()">
-        <span>🎙️ 마이크</span>
+      <!-- 3. 노란색 버튼(#FFCC00): 말하기 -->
+      <button id="mic-btn" class="large-remote-btn btn-yellow-main" onclick="toggleVoiceRecognition()">
+        <span>🎙️ 말하기</span>
       </button>
 
       <!-- 4. 흰색 버튼: 119 -->

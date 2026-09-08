@@ -490,50 +490,104 @@ function initRemoteReceiver() {
 
 // 리모컨 신호에 따른 TV 화면 팝업 제어 및 화면 전환
 function handleRemoteAction(action) {
+  const activeCallModal = document.getElementById('modal-videocall-active');
+  const videoPopupCard = document.getElementById('videocall-popup-card');
+  const medPopupCard = document.getElementById('medication-popup-card');
+  const morningWindow = document.getElementById('morning-dialog-window');
+  const currentHash = window.location.hash.replace('#', '') || 'overview';
+
   switch (action) {
-    case 'MORNING_REPLY':
-      if (window.location.hash !== '#morning') {
-        switchPage('morning');
+    // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
+    case 'BTN_GREEN':
+      if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
+        handleCallAccept();
+        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
+      } else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
+        handleMedicationTaken();
+        showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
+      } else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+        handleMorningDialogClick();
+        showToast('📱 [초록 버튼] 아침 인사 "잘 잤어" 응답 완료!', '🟢');
+      } else {
+        // 현재 위치 페이지에 따라 긍정 액션 실행
+        if (currentHash === 'videocall') {
+          handleCallAccept();
+        } else if (currentHash === 'medication') {
+          handleMedicationTaken();
+        } else if (currentHash === 'morning') {
+          handleMorningDialogClick();
+        } else {
+          showToast('📱 [초록 버튼] 버튼이 선택되었습니다.', '🟢');
+        }
       }
+      break;
+
+    // 🔴 빨강 버튼: 거절 / 나중에 / 통화 종료 / 닫기
+    case 'BTN_RED':
+      // 1. 영상통화 진행 중인 라이브 모달이 열려 있는 경우 -> 통화 종료
+      if (activeCallModal && activeCallModal.classList.contains('open')) {
+        endCall();
+        showToast('📱 [빨강 버튼] 영상통화를 종료했습니다.', '🔴');
+      }
+      // 2. 영상통화 수신 알림 팝업이 떠 있는 경우 -> 거절
+      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
+        handleCallDecline();
+        showToast('📱 [빨강 버튼] 영상통화를 거절했습니다.', '🔴');
+      }
+      // 3. 복약 알림 팝업이 떠 있는 경우 -> 나중에 먹을게
+      else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
+        handleMedicationSnooze();
+        showToast('📱 [빨강 버튼] 복약이 연기되었습니다.', '🔴');
+      }
+      // 4. 아침 인사 팝업이 떠 있는 경우 -> 닫기
+      else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+        closeMorningDialogOnly();
+        showToast('📱 [빨강 버튼] 아침 인사가 닫혔습니다.', '🔴');
+      }
+      // 5. 기본 닫기 / 거절 분기
+      else {
+        if (currentHash === 'videocall') {
+          handleCallDecline();
+        } else if (currentHash === 'medication') {
+          handleMedicationSnooze();
+        } else {
+          // 열려 있는 아무 모달이나 닫기
+          const openModalElem = document.querySelector('.custom-modal-overlay.open');
+          if (openModalElem) {
+            openModalElem.classList.remove('open');
+            showToast('📱 [빨강 버튼] 팝업 창을 닫았습니다.', '🔴');
+          }
+        }
+      }
+      break;
+
+    case 'MORNING_REPLY':
+      if (window.location.hash !== '#morning') switchPage('morning');
       handleMorningDialogClick();
-      showToast('📱 [리모컨 신호] 아침 인사 "잘 잤어" 응답 완료!', '😊');
       break;
 
     case 'MED_TAKEN':
-      if (window.location.hash !== '#medication') {
-        switchPage('medication');
-      }
+      if (window.location.hash !== '#medication') switchPage('medication');
       handleMedicationTaken();
-      showToast('📱 [리모컨 신호] "복약 완료" 처리되었습니다!', '💊');
       break;
 
     case 'MED_SNOOZE':
-      if (window.location.hash !== '#medication') {
-        switchPage('medication');
-      }
+      if (window.location.hash !== '#medication') switchPage('medication');
       handleMedicationSnooze();
-      showToast('📱 [리모컨 신호] "복약 연기" 처리되었습니다!', '⏰');
       break;
 
     case 'CALL_ACCEPT':
-      if (window.location.hash !== '#videocall') {
-        switchPage('videocall');
-      }
+      if (window.location.hash !== '#videocall') switchPage('videocall');
       handleCallAccept();
-      showToast('📱 [리모컨 신호] 영상통화를 수락했습니다!', '📞');
       break;
 
     case 'CALL_DECLINE':
-      if (window.location.hash !== '#videocall') {
-        switchPage('videocall');
-      }
+      if (window.location.hash !== '#videocall') switchPage('videocall');
       handleCallDecline();
-      showToast('📱 [리모컨 신호] 영상통화를 거절했습니다!', '❌');
       break;
 
     case 'CALL_END':
       endCall();
-      showToast('📱 [리모컨 신호] 통화를 종료했습니다.', '🔴');
       break;
 
     case 'NAV_OVERVIEW':

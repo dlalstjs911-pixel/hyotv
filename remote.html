@@ -27,42 +27,46 @@
       gap: 16px;
     }
 
+    /* 상단 슬림 헤더 (높이 2/3로 축소 + 큰 흰색 글씨 '효TV') */
     .remote-header {
       background: linear-gradient(135deg, #1e293b, #0f172a);
       border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 6px 12px;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
     }
 
     .remote-header h1 {
-      font-size: 1.15rem;
-      margin: 0 0 4px 0;
-      color: #38bdf8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      font-size: 1.75rem;
+      font-weight: 900;
+      margin: 0;
+      color: #ffffff;
+      letter-spacing: -0.5px;
     }
 
     .remote-status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       background-color: rgba(34, 197, 94, 0.15);
       color: #4ade80;
-      padding: 4px 12px;
+      padding: 2px 10px;
       border-radius: 20px;
       border: 1px solid rgba(34, 197, 94, 0.3);
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       background-color: #22c55e;
       border-radius: 50%;
-      box-shadow: 0 0 8px #22c55e;
+      box-shadow: 0 0 6px #22c55e;
     }
 
     /* 🟢🔴🔵⚪ 메인 4종 대형 리모컨 버튼 레이아웃 */
@@ -70,7 +74,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      margin: 8px 0;
+      margin: 4px 0;
     }
 
     .large-remote-btn {
@@ -177,9 +181,9 @@
 </head>
 <body>
   <div class="remote-container">
-    <!-- 헤더 영역 -->
+    <!-- 상단 슬림 헤더 -->
     <header class="remote-header">
-      <h1>📺 효TV 가상 리모컨</h1>
+      <h1>효TV</h1>
       <div class="remote-status-badge">
         <div class="status-dot"></div>
         <span id="connection-status">TV 화면 연동됨</span>

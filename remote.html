@@ -65,18 +65,18 @@
       box-shadow: 0 0 8px #22c55e;
     }
 
-    /* 🔴🟢⚪ 메인 대형 버튼 레이아웃 */
+    /* 🟢🔴🔵⚪ 메인 4종 대형 리모컨 버튼 레이아웃 */
     .hero-buttons-container {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       margin: 4px 0;
     }
 
     .large-remote-btn {
       width: 100%;
-      height: 115px;
-      border-radius: 24px;
+      height: 110px;
+      border-radius: 22px;
       border: none;
       cursor: pointer;
       display: flex;
@@ -84,8 +84,8 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      transition: transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      transition: transform 0.1s, box-shadow 0.15s, background-color 0.2s;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -107,12 +107,31 @@
       color: #ffffff;
     }
 
+    /* 파랑 마이크 버튼 */
+    .btn-blue-main {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 2px solid #60a5fa;
+      color: #ffffff;
+    }
+
+    .btn-blue-main.listening {
+      background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+      border-color: #fca5a5 !important;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
     /* 흰색 대형 119 긴급 호출 버튼 */
     .btn-white-main {
       background: #ffffff;
       border: 3px solid #dc2626;
       color: #dc2626;
-      height: 120px;
+      height: 115px;
     }
 
     .btn-white-main:active {
@@ -120,7 +139,7 @@
     }
 
     .btn-main-title {
-      font-size: 1.7rem;
+      font-size: 1.65rem;
       font-weight: 800;
       letter-spacing: -0.5px;
       display: flex;
@@ -129,7 +148,7 @@
     }
 
     .btn-119-title {
-      font-size: 2.3rem;
+      font-size: 2.2rem;
       font-weight: 900;
       letter-spacing: 1px;
       color: #dc2626;
@@ -139,72 +158,15 @@
     }
 
     .btn-main-sub {
-      font-size: 0.875rem;
+      font-size: 0.85rem;
       font-weight: 600;
-      opacity: 0.9;
+      opacity: 0.92;
     }
 
     .btn-119-sub {
-      font-size: 0.9rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: #991b1b;
-    }
-
-    /* 🎙️ 음성 인식 마이크 카드 */
-    .voice-control-card {
-      background: linear-gradient(135deg, #1e293b, #334155);
-      border: 1px solid #475569;
-      border-radius: 16px;
-      padding: 14px;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-    }
-
-    .mic-button {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: #2563eb;
-      border: none;
-      color: #ffffff;
-      font-size: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-      flex-shrink: 0;
-    }
-
-    .mic-button.listening {
-      background: #ef4444;
-      animation: pulse 1.2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-
-    .voice-hint-box {
-      text-align: left;
-    }
-
-    .voice-hint-title {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: #f8fafc;
-      margin: 0 0 2px 0;
-    }
-
-    .voice-hint-sub {
-      font-size: 0.775rem;
-      color: #94a3b8;
-      margin: 0;
     }
 
     #remote-toast {
@@ -242,9 +204,9 @@
       </div>
     </header>
 
-    <!-- 🟢🔴⚪ 메인 리모컨 버튼 3종 구성 -->
+    <!-- 🟢🔴🔵⚪ 메인 리모컨 버튼 4종 구성 -->
     <div class="hero-buttons-container">
-      <!-- 🟢 초록 버튼 -->
+      <!-- 1. 🟢 초록 버튼 -->
       <button class="large-remote-btn btn-green-main" onclick="sendAction('BTN_GREEN')">
         <div class="btn-main-title">
           <span>🟢</span>
@@ -253,7 +215,7 @@
         <div class="btn-main-sub">아침 인사 대답 · 복약 먹었어 · 영상통화 수락</div>
       </button>
 
-      <!-- 🔴 빨강 버튼 -->
+      <!-- 2. 🔴 빨강 버튼 -->
       <button class="large-remote-btn btn-red-main" onclick="sendAction('BTN_RED')">
         <div class="btn-main-title">
           <span>🔴</span>
@@ -262,7 +224,16 @@
         <div class="btn-main-sub">복약 나중에 · 영상통화 거절 · 통화 종료</div>
       </button>
 
-      <!-- ⚪ 흰색 버튼: 119 긴급 구조 -->
+      <!-- 3. 🔵 파란색 마이크 버튼 (위치 위로 이동 + 파란색 대형 버튼 디자인) -->
+      <button id="mic-btn" class="large-remote-btn btn-blue-main" onclick="toggleVoiceRecognition()">
+        <div class="btn-main-title">
+          <span>🎙️</span>
+          <span id="mic-btn-title">음성으로 대답하기</span>
+        </div>
+        <div class="btn-main-sub" id="voice-hint-text">누르고 말하기 ('먹었어', '수락', '나중에', '119')</div>
+      </button>
+
+      <!-- 4. ⚪ 흰색 119 버튼 (위치 아래로 이동) -->
       <button class="large-remote-btn btn-white-main" onclick="sendAction('BTN_119')">
         <div class="btn-119-title">
           <span>🚨</span>
@@ -270,19 +241,6 @@
         </div>
         <div class="btn-119-sub">119 긴급 구조 요청 발송</div>
       </button>
-    </div>
-
-    <!-- 🎙️ 시니어 음성 명령 카드 -->
-    <div class="voice-control-card">
-      <button id="mic-btn" class="mic-button" onclick="toggleVoiceRecognition()">
-        🎙️
-      </button>
-      <div class="voice-hint-box">
-        <div class="voice-hint-title" id="voice-hint-title">음성으로 대답하기</div>
-        <div class="voice-hint-sub" id="voice-hint-text">
-          "먹었어", "수락", "나중에", "119"
-        </div>
-      </div>
     </div>
   </div>
 

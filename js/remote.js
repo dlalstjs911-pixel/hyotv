@@ -124,21 +124,21 @@ function initVoiceRecognition() {
   recognition.onstart = () => {
     isListening = true;
     const micBtn = document.getElementById('mic-btn');
-    const hintTitle = document.getElementById('voice-hint-title');
+    const btnTitle = document.getElementById('mic-btn-title');
     const hintText = document.getElementById('voice-hint-text');
     if (micBtn) micBtn.classList.add('listening');
-    if (hintTitle) hintTitle.innerText = '🔴 듣고 있습니다...';
-    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "119"';
+    if (btnTitle) btnTitle.innerText = '🔴 듣고 있습니다...';
+    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "119"를 말씀해 보세요';
   };
 
   recognition.onend = () => {
     isListening = false;
     const micBtn = document.getElementById('mic-btn');
-    const hintTitle = document.getElementById('voice-hint-title');
+    const btnTitle = document.getElementById('mic-btn-title');
     const hintText = document.getElementById('voice-hint-text');
     if (micBtn) micBtn.classList.remove('listening');
-    if (hintTitle) hintTitle.innerText = '음성으로 대답하기';
-    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "119"';
+    if (btnTitle) btnTitle.innerText = '음성으로 대답하기';
+    if (hintText) hintText.innerText = "누르고 말하기 ('먹었어', '수락', '나중에', '119')";
   };
 
   recognition.onresult = (event) => {

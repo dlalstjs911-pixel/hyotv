@@ -31,13 +31,13 @@
       background: linear-gradient(135deg, #1e293b, #0f172a);
       border: 1px solid #334155;
       border-radius: 16px;
-      padding: 14px;
+      padding: 12px;
       text-align: center;
     }
 
     .remote-header h1 {
-      font-size: 1.2rem;
-      margin: 0 0 6px 0;
+      font-size: 1.15rem;
+      margin: 0 0 4px 0;
       color: #38bdf8;
       display: flex;
       align-items: center;
@@ -69,49 +69,58 @@
     .hero-buttons-container {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      margin: 4px 0;
+      gap: 16px;
+      margin: 8px 0;
     }
 
     .large-remote-btn {
       width: 100%;
-      height: 110px;
-      border-radius: 22px;
+      height: 120px;
+      border-radius: 24px;
       border: none;
       cursor: pointer;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       transition: transform 0.1s, box-shadow 0.15s, background-color 0.2s;
       -webkit-tap-highlight-color: transparent;
     }
 
     .large-remote-btn:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
-    /* 초록 버튼 */
+    /* 1. 초록 버튼: O */
     .btn-green-main {
       background: linear-gradient(135deg, #10b981, #059669);
-      border: 2px solid #34d399;
+      border: 3px solid #34d399;
       color: #ffffff;
+      font-size: 4.5rem;
+      font-weight: 900;
+      line-height: 1;
     }
 
-    /* 빨강 버튼 */
+    /* 2. 빨강 버튼: X */
     .btn-red-main {
       background: linear-gradient(135deg, #ef4444, #dc2626);
-      border: 2px solid #f87171;
+      border: 3px solid #f87171;
       color: #ffffff;
+      font-size: 4.5rem;
+      font-weight: 900;
+      line-height: 1;
     }
 
-    /* 파랑 마이크 버튼 */
+    /* 3. 파랑 버튼: 마이크 */
     .btn-blue-main {
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: 2px solid #60a5fa;
+      border: 3px solid #60a5fa;
       color: #ffffff;
+      font-size: 3rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .btn-blue-main.listening {
@@ -122,51 +131,24 @@
 
     @keyframes pulse {
       0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      70% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0); }
       100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
 
-    /* 흰색 대형 119 긴급 호출 버튼 */
+    /* 4. 흰색 버튼: 119 */
     .btn-white-main {
       background: #ffffff;
-      border: 3px solid #dc2626;
+      border: 4px solid #dc2626;
       color: #dc2626;
-      height: 115px;
+      font-size: 3.2rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .btn-white-main:active {
       background: #f8fafc;
-    }
-
-    .btn-main-title {
-      font-size: 1.65rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-119-title {
-      font-size: 2.2rem;
-      font-weight: 900;
-      letter-spacing: 1px;
-      color: #dc2626;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .btn-main-sub {
-      font-size: 0.85rem;
-      font-weight: 600;
-      opacity: 0.92;
-    }
-
-    .btn-119-sub {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: #991b1b;
     }
 
     #remote-toast {
@@ -177,10 +159,10 @@
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid #38bdf8;
       color: #ffffff;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-radius: 25px;
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-size: 1rem;
+      font-weight: 700;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
       opacity: 0;
       transition: opacity 0.3s;
@@ -204,42 +186,26 @@
       </div>
     </header>
 
-    <!-- 🟢🔴🔵⚪ 메인 리모컨 버튼 4종 구성 -->
+    <!-- 🟢🔴🔵⚪ 메인 4종 대형 리모컨 버튼 (O, X, 🎙️ 마이크, 🚨 119) -->
     <div class="hero-buttons-container">
-      <!-- 1. 🟢 초록 버튼 -->
+      <!-- 1. 초록 버튼: O -->
       <button class="large-remote-btn btn-green-main" onclick="sendAction('BTN_GREEN')">
-        <div class="btn-main-title">
-          <span>🟢</span>
-          <span>확인 / 수락 / 먹었어</span>
-        </div>
-        <div class="btn-main-sub">아침 인사 대답 · 복약 먹었어 · 영상통화 수락</div>
+        <span>O</span>
       </button>
 
-      <!-- 2. 🔴 빨강 버튼 -->
+      <!-- 2. 빨강 버튼: X -->
       <button class="large-remote-btn btn-red-main" onclick="sendAction('BTN_RED')">
-        <div class="btn-main-title">
-          <span>🔴</span>
-          <span>거절 / 나중에 / 통화종료</span>
-        </div>
-        <div class="btn-main-sub">복약 나중에 · 영상통화 거절 · 통화 종료</div>
+        <span>X</span>
       </button>
 
-      <!-- 3. 🔵 파란색 마이크 버튼 (위치 위로 이동 + 파란색 대형 버튼 디자인) -->
+      <!-- 3. 파랑 버튼: 마이크 -->
       <button id="mic-btn" class="large-remote-btn btn-blue-main" onclick="toggleVoiceRecognition()">
-        <div class="btn-main-title">
-          <span>🎙️</span>
-          <span id="mic-btn-title">음성으로 대답하기</span>
-        </div>
-        <div class="btn-main-sub" id="voice-hint-text">누르고 말하기 ('먹었어', '수락', '나중에', '119')</div>
+        <span>🎙️ 마이크</span>
       </button>
 
-      <!-- 4. ⚪ 흰색 119 버튼 (위치 아래로 이동) -->
+      <!-- 4. 흰색 버튼: 119 -->
       <button class="large-remote-btn btn-white-main" onclick="sendAction('BTN_119')">
-        <div class="btn-119-title">
-          <span>🚨</span>
-          <span>119</span>
-        </div>
-        <div class="btn-119-sub">119 긴급 구조 요청 발송</div>
+        <span>🚨 119</span>
       </button>
     </div>
   </div>

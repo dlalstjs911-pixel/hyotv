@@ -142,7 +142,7 @@ function initVoiceRecognition() {
     const micBtn = document.getElementById('mic-btn');
     if (micBtn) {
       micBtn.classList.add('listening');
-      micBtn.innerHTML = '<span>🔴 듣는 중...</span>';
+      micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
     }
   };
 

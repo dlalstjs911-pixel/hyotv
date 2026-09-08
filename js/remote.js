@@ -1,4 +1,4 @@
-// 효TV 스마트폰 가상 2버튼 리모컨 스크립트
+// 효TV 스마트폰 가상 리모컨 스크립트 (초록 / 빨강 / 119 흰색 버튼)
 
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
@@ -70,16 +70,13 @@ function showActionFeedback(action) {
   switch (action) {
     case 'BTN_GREEN': msg = '🟢 초록 버튼 (확인/먹었어/수락) 전송!'; break;
     case 'BTN_RED': msg = '🔴 빨강 버튼 (거절/나중에/통화종료) 전송!'; break;
+    case 'BTN_119': msg = '🚨 119 긴급 구조 요청을 TV로 전송했습니다!'; break;
     case 'MORNING_REPLY': msg = '😊 "잘 잤어" 응답 전송!'; break;
     case 'MED_TAKEN': msg = '💊 "복약 완료" 전송!'; break;
     case 'MED_SNOOZE': msg = '⏰ "복약 연기" 전송!'; break;
     case 'CALL_ACCEPT': msg = '📞 "영상통화 수락" 전송!'; break;
     case 'CALL_DECLINE': msg = '❌ "영상통화 거절" 전송!'; break;
     case 'CALL_END': msg = '🔴 "영상통화 종료" 전송!'; break;
-    case 'NAV_OVERVIEW': msg = '📺 [소개] 화면으로 이동'; break;
-    case 'NAV_MORNING': msg = '📺 [아침인사] 화면으로 이동'; break;
-    case 'NAV_MEDICATION': msg = '📺 [복약알림] 화면으로 이동'; break;
-    case 'NAV_VIDEOCALL': msg = '📺 [영상통화] 화면으로 이동'; break;
   }
   showRemoteToast(msg);
 }
@@ -131,7 +128,7 @@ function initVoiceRecognition() {
     const hintText = document.getElementById('voice-hint-text');
     if (micBtn) micBtn.classList.add('listening');
     if (hintTitle) hintTitle.innerText = '🔴 듣고 있습니다...';
-    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "종료"';
+    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "119"';
   };
 
   recognition.onend = () => {
@@ -141,7 +138,7 @@ function initVoiceRecognition() {
     const hintText = document.getElementById('voice-hint-text');
     if (micBtn) micBtn.classList.remove('listening');
     if (hintTitle) hintTitle.innerText = '음성으로 대답하기';
-    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "종료"';
+    if (hintText) hintText.innerText = '"먹었어", "수락", "나중에", "119"';
   };
 
   recognition.onresult = (event) => {
@@ -174,12 +171,19 @@ function toggleVoiceRecognition() {
   }
 }
 
-// 🟢 초록 / 🔴 빨강 신호로 인공지능 분류 매핑
+// 🟢 초록 / 🔴 빨강 / 🚨 119 흰색 신호 매핑
 function handleVoiceCommand(text) {
   const lower = text.toLowerCase();
 
-  // 🟢 초록 계열 명령 (확인 / 수락 / 먹었어 / 잘 잤어 / 네 / 초록)
+  // 🚨 119 긴급 명령 (119 / 구조 / 응급 / 흰색 / 하얀색)
   if (
+    lower.includes('119') || lower.includes('구조') || lower.includes('응급') ||
+    lower.includes('도와줘') || lower.includes('살려') || lower.includes('흰색') || lower.includes('하얀')
+  ) {
+    sendAction('BTN_119');
+  }
+  // 🟢 초록 계열 명령 (확인 / 수락 / 먹었어 / 잘 잤어 / 네 / 초록)
+  else if (
     lower.includes('먹었') || lower.includes('약 먹') || 
     lower.includes('수락') || lower.includes('받아') || lower.includes('여보세요') ||
     lower.includes('잘 잤') || lower.includes('안녕') || lower.includes('좋은 아침') ||

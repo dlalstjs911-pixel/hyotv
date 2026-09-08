@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>효TV - 시니어 2버튼 리모컨</title>
+  <title>효TV - 시니어 가상 리모컨</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
     body {
@@ -65,6 +65,91 @@
       box-shadow: 0 0 8px #22c55e;
     }
 
+    /* 🔴🟢⚪ 메인 대형 버튼 레이아웃 */
+    .hero-buttons-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 4px 0;
+    }
+
+    .large-remote-btn {
+      width: 100%;
+      height: 115px;
+      border-radius: 24px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s, box-shadow 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .large-remote-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* 초록 버튼 */
+    .btn-green-main {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: 2px solid #34d399;
+      color: #ffffff;
+    }
+
+    /* 빨강 버튼 */
+    .btn-red-main {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border: 2px solid #f87171;
+      color: #ffffff;
+    }
+
+    /* 흰색 대형 119 긴급 호출 버튼 */
+    .btn-white-main {
+      background: #ffffff;
+      border: 3px solid #dc2626;
+      color: #dc2626;
+      height: 120px;
+    }
+
+    .btn-white-main:active {
+      background: #f8fafc;
+    }
+
+    .btn-main-title {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-119-title {
+      font-size: 2.3rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #dc2626;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-main-sub {
+      font-size: 0.875rem;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    .btn-119-sub {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #991b1b;
+    }
+
     /* 🎙️ 음성 인식 마이크 카드 */
     .voice-control-card {
       background: linear-gradient(135deg, #1e293b, #334155);
@@ -73,7 +158,6 @@
       padding: 14px;
       text-align: center;
       display: flex;
-      flex-direction: flex-row;
       align-items: center;
       justify-content: center;
       gap: 16px;
@@ -123,107 +207,6 @@
       margin: 0;
     }
 
-    /* 🔴🟢 초록/빨강 시니어 2버튼 전용 레이아웃 */
-    .hero-buttons-container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      margin: 4px 0;
-    }
-
-    .large-remote-btn {
-      width: 100%;
-      height: 120px;
-      border-radius: 24px;
-      border: none;
-      color: #ffffff;
-      font-weight: 800;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      transition: transform 0.1s, box-shadow 0.15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .large-remote-btn:active {
-      transform: scale(0.96);
-    }
-
-    /* 초록 버튼 (긍정 / 먹었어 / 수락 / 대답) */
-    .btn-green-main {
-      background: linear-gradient(135deg, #10b981, #059669);
-      border: 2px solid #34d399;
-    }
-    .btn-green-main:active {
-      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
-    }
-
-    /* 빨강 버튼 (부정 / 나중에 / 거절 / 통화종료) */
-    .btn-red-main {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      border: 2px solid #f87171;
-    }
-    .btn-red-main:active {
-      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
-    }
-
-    .btn-main-title {
-      font-size: 1.75rem;
-      letter-spacing: -0.5px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-main-sub {
-      font-size: 0.875rem;
-      font-weight: 500;
-      opacity: 0.9;
-    }
-
-    /* TV 화면 페이지 이동 버튼 구역 */
-    .remote-section {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 12px 16px;
-    }
-
-    .section-title {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
-
-    .page-nav-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-
-    .btn-nav-small {
-      padding: 10px 4px;
-      background: #334155;
-      border: 1px solid #475569;
-      border-radius: 8px;
-      color: #cbd5e1;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-    }
-
-    .btn-nav-small:active {
-      background: #0284c7;
-      color: #ffffff;
-    }
-
     #remote-toast {
       position: fixed;
       bottom: 20px;
@@ -252,16 +235,16 @@
   <div class="remote-container">
     <!-- 헤더 영역 -->
     <header class="remote-header">
-      <h1>📺 효TV 2버튼 전용 리모컨</h1>
+      <h1>📺 효TV 가상 리모컨</h1>
       <div class="remote-status-badge">
         <div class="status-dot"></div>
         <span id="connection-status">TV 화면 연동됨</span>
       </div>
     </header>
 
-    <!-- 🟢🔴 메인 2개 대형 통합 버튼 -->
+    <!-- 🟢🔴⚪ 메인 리모컨 버튼 3종 구성 -->
     <div class="hero-buttons-container">
-      <!-- 초록 버튼 -->
+      <!-- 🟢 초록 버튼 -->
       <button class="large-remote-btn btn-green-main" onclick="sendAction('BTN_GREEN')">
         <div class="btn-main-title">
           <span>🟢</span>
@@ -270,13 +253,22 @@
         <div class="btn-main-sub">아침 인사 대답 · 복약 먹었어 · 영상통화 수락</div>
       </button>
 
-      <!-- 빨강 버튼 -->
+      <!-- 🔴 빨강 버튼 -->
       <button class="large-remote-btn btn-red-main" onclick="sendAction('BTN_RED')">
         <div class="btn-main-title">
           <span>🔴</span>
           <span>거절 / 나중에 / 통화종료</span>
         </div>
         <div class="btn-main-sub">복약 나중에 · 영상통화 거절 · 통화 종료</div>
+      </button>
+
+      <!-- ⚪ 흰색 버튼: 119 긴급 구조 -->
+      <button class="large-remote-btn btn-white-main" onclick="sendAction('BTN_119')">
+        <div class="btn-119-title">
+          <span>🚨</span>
+          <span>119</span>
+        </div>
+        <div class="btn-119-sub">119 긴급 구조 요청 발송</div>
       </button>
     </div>
 
@@ -288,19 +280,8 @@
       <div class="voice-hint-box">
         <div class="voice-hint-title" id="voice-hint-title">음성으로 대답하기</div>
         <div class="voice-hint-sub" id="voice-hint-text">
-          "먹었어", "수락", "나중에", "종료"
+          "먹었어", "수락", "나중에", "119"
         </div>
-      </div>
-    </div>
-
-    <!-- 📺 TV 화면 이동 카테고리 -->
-    <div class="remote-section">
-      <div class="section-title">📺 TV 화면 이동</div>
-      <div class="page-nav-grid">
-        <button class="btn-nav-small" onclick="sendAction('NAV_OVERVIEW')">소개</button>
-        <button class="btn-nav-small" onclick="sendAction('NAV_MORNING')">아침인사</button>
-        <button class="btn-nav-small" onclick="sendAction('NAV_MEDICATION')">복약알림</button>
-        <button class="btn-nav-small" onclick="sendAction('NAV_VIDEOCALL')">영상통화</button>
       </div>
     </div>
   </div>

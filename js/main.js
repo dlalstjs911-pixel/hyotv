@@ -561,6 +561,13 @@ function handleRemoteAction(action) {
       }
       break;
 
+    // ⚪ 흰색 버튼: 🚨 119 긴급 구조 요청
+    case 'BTN_119':
+      openModal('modal-emergency-119');
+      showToast('🚨 [119 긴급 구조] 119 구급대 및 자녀에게 위치와 알림이 발송되었습니다!', '🚨');
+      speakText('백십구 긴급 구조 요청이 접수되었습니다. 자녀와 구급대에 알림을 보냅니다.', 0.95, 'daughter');
+      break;
+
     case 'MORNING_REPLY':
       if (window.location.hash !== '#morning') switchPage('morning');
       handleMorningDialogClick();

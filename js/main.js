@@ -623,3 +623,55 @@ function handleRemoteAction(action) {
   }
 }
 
+// ----------------------------------------------------
+// 🎙️ TV 모니터 자체 항시 핸즈프리 음성 인식 (Continuous STT)
+// ----------------------------------------------------
+let tvRecognition = null;
+
+function initTvVoiceRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  tvRecognition = new SpeechRecognition();
+  tvRecognition.lang = 'ko-KR';
+  tvRecognition.continuous = false;
+  tvRecognition.interimResults = false;
+
+  tvRecognition.onend = () => {
+    setTimeout(() => {
+      if (tvRecognition) {
+        try {
+          tvRecognition.start();
+        } catch (e) {}
+      }
+    }, 400);
+  };
+
+  tvRecognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    console.log('[TV STT] 음성 수신:', transcript);
+    handleTvVoiceCommand(transcript);
+  };
+
+  tvRecognition.onerror = (err) => {};
+
+  try {
+    tvRecognition.start();
+  } catch (e) {}
+}
+
+function handleTvVoiceCommand(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('119') || lower.includes('구조') || lower.includes('응급') || lower.includes('도와줘')) {
+    handleRemoteAction('BTN_119');
+  } else if (lower.includes('먹었') || lower.includes('약 먹') || lower.includes('수락') || lower.includes('잘 잤') || lower.includes('네') || lower.includes('예')) {
+    handleRemoteAction('BTN_GREEN');
+  } else if (lower.includes('나중에') || lower.includes('거절') || lower.includes('종료') || lower.includes('아니')) {
+    handleRemoteAction('BTN_RED');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initTvVoiceRecognition();
+});
+

@@ -85,13 +85,12 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
   if (koreanVoices.length > 0) {
     let selectedVoice = koreanVoices[0];
     if (role === 'mother') {
-      // 70대 어르신 여성 보이스: 굵직하고 편안한 보이스 우선 선택 (최초 설정)
-      selectedVoice = koreanVoices.find(v => 
-        v.name.toLowerCase().includes('google') ||
-        v.name.toLowerCase().includes('korean')
-      ) || koreanVoices[koreanVoices.length - 1];
+      // ⭐️ 70대 어르신 보이스: 5~8초 네트워크 지연을 유발하는 Google 원격 음성을 배제하고, 0초 즉시 재생되는 로컬 보이스 매칭!
+      selectedVoice = koreanVoices.find(v => v.localService && !v.name.includes('Google')) ||
+                      koreanVoices.find(v => !v.name.includes('Google')) ||
+                      koreanVoices[koreanVoices.length - 1];
     } else {
-      // 30-40대 딸 보이스: 최초 설정 복원 (Yuna / Sun-Hi / Female)
+      // 30-40대 딸 보이스: 즉시 응답하는 로컬 Yuna 보이스 우선 매칭
       selectedVoice = koreanVoices.find(v => 
         v.name.toLowerCase().includes('yuna') || 
         v.name.toLowerCase().includes('sun-hi') || 
@@ -341,34 +340,34 @@ function startMotherDaughterConversation() {
   const motherBox = document.getElementById('mother-cam-box');
   const daughterBox = document.getElementById('daughter-cam-box');
 
-  // [Step 1] 통화 연결 0.6초 후 -> 딸: "엄마 뭐하고 계셨어요?"
+  // [Step 1] 통화 연결 0.4초 후 -> 딸: "엄마 뭐하고 계셨어요?"
   const t1 = setTimeout(() => {
     const speech1 = "엄마 뭐하고 계셨어요?";
     if (daughterText) daughterText.innerText = speech1;
 
-    speakText(speech1, 1.0, 'daughter',
+    speakText(speech1, 0.95, 'daughter',
       // onStart: 딸 음성이 '실제 스피커로 출력되는 순간' 말풍선과 카메라 뷰 켜기!
       () => {
         if (daughterBubble) daughterBubble.classList.add('active');
         if (daughterBox) daughterBox.classList.add('speaking');
       },
-      // onEnd: 딸 발화 완료 시 말풍선 닫고 0.4초 후 엄마 응답으로 자연스럽게 전환
+      // onEnd: 딸 발화 완료 시 즉시 말풍선 닫고 0.25초(1초 이내) 만에 엄마 응답 시작!
       () => {
         if (daughterBubble) daughterBubble.classList.remove('active');
         if (daughterBox) daughterBox.classList.remove('speaking');
 
         const t2 = setTimeout(() => {
-          // [Step 2] 엄마(70대 여성 어르신): "드라마 보고 있었어. 저녁은 먹었니?"
+          // [Step 2] 엄마(70대 어르신): "드라마 보고 있었어. 저녁은 먹었니?"
           const speech2 = "드라마 보고 있었어. 저녁은 먹었니?";
           if (motherText) motherText.innerText = speech2;
 
-          speakText(speech2, 0.75, 'mother',
-            // onStart: 엄마 음성이 '실제 스피커로 출력되는 순간' 말풍선 켜기 (싱크 100% 일치!)
+          speakText(speech2, 0.72, 'mother',
+            // onStart: 엄마 음성이 출력되는 순간 말풍선 켜기 (싱크 100% 일치!)
             () => {
               if (motherBubble) motherBubble.classList.add('active');
               if (motherBox) motherBox.classList.add('speaking');
             },
-            // onEnd: 엄마 발화 완료 시 말풍선 닫고 0.4초 후 딸 마무리 대화로 전환
+            // onEnd: 엄마 발화 완료 시 말풍선 닫고 0.25초 후 딸 마무리 대사 시작!
             () => {
               if (motherBubble) motherBubble.classList.remove('active');
               if (motherBox) motherBox.classList.remove('speaking');
@@ -378,29 +377,29 @@ function startMotherDaughterConversation() {
                 const speech3 = "네~. 엄마는요?";
                 if (daughterText) daughterText.innerText = speech3;
 
-                speakText(speech3, 1.0, 'daughter',
+                speakText(speech3, 0.95, 'daughter',
                   () => {
                     if (daughterBubble) daughterBubble.classList.add('active');
                     if (daughterBox) daughterBox.classList.add('speaking');
                   },
                   () => {
-                    // 1.5초 후 말풍선 정리
+                    // 1.2초 후 말풍선 정리
                     const t4 = setTimeout(() => {
                       if (daughterBubble) daughterBubble.classList.remove('active');
                       if (daughterBox) daughterBox.classList.remove('speaking');
-                    }, 1500);
+                    }, 1200);
                     conversationTimeouts.push(t4);
                   }
                 );
-              }, 400);
+              }, 250);
               conversationTimeouts.push(t3);
             }
           );
-        }, 400);
+        }, 250);
         conversationTimeouts.push(t2);
       }
     );
-  }, 600);
+  }, 400);
 
   conversationTimeouts.push(t1);
 }

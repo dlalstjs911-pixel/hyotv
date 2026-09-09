@@ -36,8 +36,15 @@ function closeMorningDialogOnly() {
 let isTtsSpeaking = false;
 
 // --- 한국어 음성 발화 공통 함수 (딸: 30-40대 중년 여성, 엄마: 70대 여성 어르신 톤) ---
-function speakText(text, pitch = 0.95, role = 'daughter') {
-  if (!('speechSynthesis' in window)) return;
+function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd = null) {
+  if (!('speechSynthesis' in window)) {
+    if (onStart) onStart();
+    setTimeout(() => { if (onEnd) onEnd(); }, 2000);
+    return;
+  }
+
+  // 큐에 밀려있던 이전 잔여 발화 즉시 초기화
+  window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ko-KR';
@@ -45,24 +52,28 @@ function speakText(text, pitch = 0.95, role = 'daughter') {
   // TV TTS 발화 중 자체 마이크 오인식 방지 플래그
   utterance.onstart = () => {
     isTtsSpeaking = true;
-    console.log('[TV TTS] 발화 시작 -> TV 자체 마이크 일시 차단');
+    console.log('[TV TTS] 실제 음성 송출 시작:', text);
+    if (onStart) onStart();
   };
   utterance.onend = () => {
     isTtsSpeaking = false;
-    console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 상시 청취 유지');
+    console.log('[TV TTS] 음성 송출 완료:', text);
+    if (onEnd) onEnd();
   };
-  utterance.onerror = () => {
+  utterance.onerror = (err) => {
     isTtsSpeaking = false;
+    console.warn('[TV TTS] 발화 오류 또는 취소:', err);
+    if (onEnd) onEnd();
   };
 
   if (role === 'mother') {
-    // 70대 여성 어르신 톤: 다소 천천히(0.82), 인자하고 낮은 목소리(0.72)
-    utterance.rate = 0.82;
-    utterance.pitch = 0.72;
+    // 70대 여성 어르신 톤: 다소 천천히(0.85), 인자하고 낮은 목소리(0.75)
+    utterance.rate = 0.85;
+    utterance.pitch = pitch || 0.75;
   } else {
-    // 30-40대 중년 딸 톤: 차분하고 안정적(0.90 / 0.95)
-    utterance.rate = 0.90;
-    utterance.pitch = pitch || 0.95;
+    // 30-40대 중년 딸 톤: 차분하고 자연스러움(0.95)
+    utterance.rate = 0.95;
+    utterance.pitch = pitch || 1.0;
   }
 
   const voices = window.speechSynthesis.getVoices();
@@ -71,11 +82,10 @@ function speakText(text, pitch = 0.95, role = 'daughter') {
   if (koreanVoices.length > 0) {
     let selectedVoice = koreanVoices[0];
     if (role === 'mother') {
-      // 70대 어르신 여성 보이스: 굵직하고 편안한 보이스 우선 선택
-      selectedVoice = koreanVoices.find(v => 
-        v.name.toLowerCase().includes('google') ||
-        v.name.toLowerCase().includes('korean')
-      ) || koreanVoices[koreanVoices.length - 1];
+      // 70대 어르신 보이스: 네트워크 지연 없는 로컬 보이스 우선 매칭
+      selectedVoice = koreanVoices.find(v => v.localService && !v.name.includes('Google')) ||
+                      koreanVoices.find(v => v.name.toLowerCase().includes('korean')) ||
+                      koreanVoices[koreanVoices.length - 1];
     } else {
       selectedVoice = koreanVoices.find(v => 
         v.name.toLowerCase().includes('yuna') || 
@@ -322,49 +332,68 @@ function startMotherDaughterConversation() {
   const motherBox = document.getElementById('mother-cam-box');
   const daughterBox = document.getElementById('daughter-cam-box');
 
-  // [Step 1] 통화 연결 0.8초 후 -> 딸(30-40대 중년 여성 톤): "엄마 뭐하고 계셨어요?"
+  // [Step 1] 통화 연결 0.6초 후 -> 딸: "엄마 뭐하고 계셨어요?"
   const t1 = setTimeout(() => {
-    if (daughterBubble && daughterText) {
-      daughterText.innerText = "엄마 뭐하고 계셨어요?";
-      daughterBubble.classList.add('active');
-      if (daughterBox) daughterBox.classList.add('speaking');
-    }
-    speakText("엄마 뭐하고 계셨어요?", 0.95, 'daughter');
-  }, 800);
+    const speech1 = "엄마 뭐하고 계셨어요?";
+    if (daughterText) daughterText.innerText = speech1;
 
-  // [Step 2] 3.5초 후 -> 딸 말풍선 닫고 -> 엄마(70대 여성 어르신 톤): "드라마 보고 있었어. 저녁은 먹었니?"
-  const t2 = setTimeout(() => {
-    if (daughterBubble) daughterBubble.classList.remove('active');
-    if (daughterBox) daughterBox.classList.remove('speaking');
+    speakText(speech1, 1.0, 'daughter',
+      // onStart: 딸 음성이 '실제 스피커로 출력되는 순간' 말풍선과 카메라 뷰 켜기!
+      () => {
+        if (daughterBubble) daughterBubble.classList.add('active');
+        if (daughterBox) daughterBox.classList.add('speaking');
+      },
+      // onEnd: 딸 발화 완료 시 말풍선 닫고 0.4초 후 엄마 응답으로 자연스럽게 전환
+      () => {
+        if (daughterBubble) daughterBubble.classList.remove('active');
+        if (daughterBox) daughterBox.classList.remove('speaking');
 
-    if (motherBubble && motherText) {
-      motherText.innerText = "드라마 보고 있었어. 저녁은 먹었니?";
-      motherBubble.classList.add('active');
-      if (motherBox) motherBox.classList.add('speaking');
-    }
-    speakText("드라마 보고 있었어. 저녁은 먹었니?", 0.72, 'mother');
-  }, 3800);
+        const t2 = setTimeout(() => {
+          // [Step 2] 엄마(70대 여성 어르신): "드라마 보고 있었어. 저녁은 먹었니?"
+          const speech2 = "드라마 보고 있었어. 저녁은 먹었니?";
+          if (motherText) motherText.innerText = speech2;
 
-  // [Step 3] 7.5초 후 -> 엄마 말풍선 닫고 -> 딸(30-40대 중년 여성 톤): "네~. 엄마는요?"
-  const t3 = setTimeout(() => {
-    if (motherBubble) motherBubble.classList.remove('active');
-    if (motherBox) motherBox.classList.remove('speaking');
+          speakText(speech2, 0.75, 'mother',
+            // onStart: 엄마 음성이 '실제 스피커로 출력되는 순간' 말풍선 켜기 (싱크 100% 일치!)
+            () => {
+              if (motherBubble) motherBubble.classList.add('active');
+              if (motherBox) motherBox.classList.add('speaking');
+            },
+            // onEnd: 엄마 발화 완료 시 말풍선 닫고 0.4초 후 딸 마무리 대화로 전환
+            () => {
+              if (motherBubble) motherBubble.classList.remove('active');
+              if (motherBox) motherBox.classList.remove('speaking');
 
-    if (daughterBubble && daughterText) {
-      daughterText.innerText = "네~. 엄마는요?";
-      daughterBubble.classList.add('active');
-      if (daughterBox) daughterBox.classList.add('speaking');
-    }
-    speakText("네~. 엄마는요?", 0.96, 'daughter');
-  }, 7800);
+              const t3 = setTimeout(() => {
+                // [Step 3] 딸: "네~. 엄마는요?"
+                const speech3 = "네~. 엄마는요?";
+                if (daughterText) daughterText.innerText = speech3;
 
-  // [Step 4] 10.5초 후 -> 대화 마무리 말풍선 정리
-  const t4 = setTimeout(() => {
-    if (daughterBubble) daughterBubble.classList.remove('active');
-    if (daughterBox) daughterBox.classList.remove('speaking');
-  }, 10800);
+                speakText(speech3, 1.0, 'daughter',
+                  () => {
+                    if (daughterBubble) daughterBubble.classList.add('active');
+                    if (daughterBox) daughterBox.classList.add('speaking');
+                  },
+                  () => {
+                    // 1.5초 후 말풍선 정리
+                    const t4 = setTimeout(() => {
+                      if (daughterBubble) daughterBubble.classList.remove('active');
+                      if (daughterBox) daughterBox.classList.remove('speaking');
+                    }, 1500);
+                    conversationTimeouts.push(t4);
+                  }
+                );
+              }, 400);
+              conversationTimeouts.push(t3);
+            }
+          );
+        }, 400);
+        conversationTimeouts.push(t2);
+      }
+    );
+  }, 600);
 
-  conversationTimeouts.push(t1, t2, t3, t4);
+  conversationTimeouts.push(t1);
 }
 
 function handleCallDecline() {

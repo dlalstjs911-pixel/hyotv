@@ -48,10 +48,8 @@ function speakText(text, pitch = 0.95, role = 'daughter') {
     console.log('[TV TTS] 발화 시작 -> TV 자체 마이크 일시 차단');
   };
   utterance.onend = () => {
-    setTimeout(() => {
-      isTtsSpeaking = false;
-      console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 즉시 재개');
-    }, 200);
+    isTtsSpeaking = false;
+    console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 상시 청취 유지');
   };
   utterance.onerror = () => {
     isTtsSpeaking = false;
@@ -722,9 +720,15 @@ function initTvVoiceRecognition() {
 }
 
 function handleTvVoiceCommand(text) {
-  // 1. TV 스피커가 안내 방송을 하고 있는 중이면 스피커 소리 오인식 원천 차단!
-  if (isTtsSpeaking) {
-    console.log('[TV STT] TV TTS 발화 중 발생한 자체 스피커 소리 무시:', text);
+  const lower = text.replace(/\s+/g, '').toLowerCase();
+
+  // 1. TV 자체 안내 멘트(에코) 방지: TV가 스스로 말한 안내 문장 자체는 무시 (사용자의 "잘 잤어", "먹었어" 등은 즉시 통과)
+  const tvPromptEchoes = [
+    '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요',
+    '엄마약먹을시간', '약먹을시간이야', '약먹을시간'
+  ];
+  if (isTtsSpeaking && tvPromptEchoes.some(echo => lower.includes(echo))) {
+    console.log('[TV STT] TV 자체 안내 방송 에코 무시:', text);
     return;
   }
 
@@ -733,8 +737,6 @@ function handleTvVoiceCommand(text) {
   if (now - lastTvVoiceActionTime < 1500) {
     return;
   }
-
-  const lower = text.replace(/\s+/g, '').toLowerCase();
 
   // 🚨 119 긴급 명령
   const urgentKeywords = [

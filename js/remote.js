@@ -226,15 +226,11 @@ function startVoiceRecognitionFresh() {
   updateMicButtonUI('listening');
   updateVoiceHUD('listening', '귀 기울여 듣고 있어요... 말씀하세요!');
 
-  // 8초 동안 충분히 말씀하실 수 있도록 대기 시간 부여
-  if (listenTimeout) clearTimeout(listenTimeout);
-  listenTimeout = setTimeout(() => {
-    if (isListening && !commandHandled) {
-      console.log('[Remote STT] 8초 청취 대기 시간 만료');
-      stopVoiceRecognitionGraceful(false);
-      updateVoiceHUD('idle', '⌛ 대기 시간이 지나 마이크가 꺼졌습니다.');
-    }
-  }, 8000);
+  // 사용자가 응답(명령어 발화)을 하거나 직접 마이크를 끌 때까지 상시 청취 유지
+  if (listenTimeout) {
+    clearTimeout(listenTimeout);
+    listenTimeout = null;
+  }
 
   // ⭐️ 핵심: 유저 제스처(터치/클릭) 유실 방지를 위해 setTimeout 없이 동기적으로 즉시 start() 실행!
   try {

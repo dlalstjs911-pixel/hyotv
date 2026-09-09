@@ -50,8 +50,8 @@ function speakText(text, pitch = 0.95, role = 'daughter') {
   utterance.onend = () => {
     setTimeout(() => {
       isTtsSpeaking = false;
-      console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 재개');
-    }, 1200);
+      console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 즉시 재개');
+    }, 200);
   };
   utterance.onerror = () => {
     isTtsSpeaking = false;
@@ -767,7 +767,10 @@ function handleTvVoiceCommand(text) {
     '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
     '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어먹었어', '그래',
     '알았어', '알았어요', '알겠어', '알겠어요', '확인', '완료', '수락', '받아', '받아라',
-    '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐', '잘잤어', '좋은아침', '안녕'
+    '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐',
+    // 🌅 아침 인사 응답 (잘 잤어 관련 다양한 구어체/어간/자연어 대폭 보강)
+    '잘잤', '잘자', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어',
+    '좋은아침', '안녕', '반가워'
   ];
   if (greenKeywords.some(kw => lower.includes(kw))) {
     lastTvVoiceActionTime = now;

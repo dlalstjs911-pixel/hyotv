@@ -34,6 +34,7 @@ function closeMorningDialogOnly() {
 }
 
 let isTtsSpeaking = false;
+let lastTtsEndTime = 0;
 
 // --- 한국어 음성 발화 공통 함수 (딸: 30-40대 중년 여성, 엄마: 70대 여성 어르신 톤) ---
 function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd = null) {
@@ -57,11 +58,13 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
   };
   utterance.onend = () => {
     isTtsSpeaking = false;
+    lastTtsEndTime = Date.now();
     console.log('[TV TTS] 음성 송출 완료:', text);
     if (onEnd) onEnd();
   };
   utterance.onerror = (err) => {
     isTtsSpeaking = false;
+    lastTtsEndTime = Date.now();
     console.warn('[TV TTS] 발화 오류 또는 취소:', err);
     if (onEnd) onEnd();
   };
@@ -168,7 +171,10 @@ function speakMorningGreeting() {
 
   clearTimeout(morningAudioTimeout);
   morningAudioTimeout = setTimeout(() => {
-    speakText("엄마 좋은 아침이에요. 잘 잤어요?", 0.95, 'daughter');
+    speakText("엄마 좋은 아침이에요. 잘 잤어요?", 0.95, 'daughter', null, () => {
+      // ⭐️ 핵심: TV 음성 안내("잘 잤어요?")가 완전히 끝난 뒤에 리모컨 마이크 활성화 신호 전송!
+      sendPopupOpenedSignal('morning');
+    });
   }, 500);
 }
 
@@ -448,7 +454,6 @@ function switchPage(pageId) {
     const win = document.getElementById('morning-dialog-window');
     if (win) win.classList.remove('hide-dialog');
     speakMorningGreeting();
-    sendPopupOpenedSignal('morning');
   } else if (pageId === 'medication') {
     triggerMedicationNotice();
   } else if (pageId === 'videocall') {
@@ -810,20 +815,24 @@ function initTvVoiceRecognition() {
 
 function handleTvVoiceCommand(text) {
   const lower = text.replace(/\s+/g, '').toLowerCase();
+  const now = Date.now();
 
-  // 1. TV 자체 안내 멘트(에코) 방지: TV가 스스로 말한 안내 문장 자체는 무시 (사용자의 "잘 잤어", "먹었어" 등은 즉시 통과)
+  // 1. TV 자체 안내 멘트(에코) 방지: TV가 스스로 말한 안내 문장 자체는 무시
   const tvPromptEchoes = [
-    '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요',
+    '엄마좋은아침이에요잘잤어요', '좋은아침이에요잘잤어요', '잘잤어요', '잘잤니',
+    '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요', '좋은아침',
     '엄마약먹을시간', '약먹을시간이야', '약먹을시간',
     '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요'
   ];
-  if (isTtsSpeaking && tvPromptEchoes.some(echo => lower.includes(echo))) {
-    console.log('[TV STT] TV 자체 안내 방송/대화 에코 무시:', text);
+
+  // ⭐️ 핵심: TV TTS가 재생 중이거나 발화가 끝난 지 1.5초 이내(스피커 잔향 구간)에 들어온 TV 자체 음성은 100% 무시!
+  const isWithinEchoWindow = isTtsSpeaking || (now - lastTtsEndTime < 1500);
+  if (isWithinEchoWindow && tvPromptEchoes.some(echo => lower.includes(echo))) {
+    console.log('[TV STT] TV 자체 안내 방송/질문 에코 완벽 무시:', text);
     return;
   }
 
   // 2. 1.5초 내 연속 중복 실행 방지 (디바운스 락)
-  const now = Date.now();
   if (now - lastTvVoiceActionTime < 1500) {
     return;
   }
@@ -884,9 +893,8 @@ function handleTvVoiceCommand(text) {
     // 통화 연결
     '여보세요', '통화', '전화받아', '연결',
     
-    // 🌅 아침 인사 응답
-    '잘잤', '잘자', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어',
-    '좋은아침', '안녕', '반가워'
+    // 🌅 아침 인사 응답 (부모님의 실제 응답 어간: 잘 잤어, 잘 잤다, 푹 잤어 등)
+    '잘잤어', '잘잤다', '잘잤지', '잘잤네', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어'
   ];
   if (greenKeywords.some(kw => lower.includes(kw))) {
     lastTvVoiceActionTime = now;

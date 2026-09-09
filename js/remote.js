@@ -3,14 +3,11 @@
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
 
-// TV에서 팝업이 뜨면 자동으로 마이크(말하기 버튼) 켜기!
+// TV에서 팝업이 뜨면 말하기 버튼 강조 및 알림! (강제 마이크 실행 ➔ Safari 보안 차단 방지)
 broadcastChannel.onmessage = (event) => {
   if (event.data && event.data.action === 'POPUP_OPENED') {
-    console.log('[Remote] TV 팝업 오픈 신호 수신 -> 마이크 자동 작동!');
-    showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
-    setTimeout(() => {
-      startVoiceRecognitionFresh();
-    }, 300);
+    console.log('[Remote] TV 팝업 오픈 신호 수신');
+    highlightMicPrompt();
   }
 };
 
@@ -52,8 +49,7 @@ function connectToTV(tvPeerId) {
 
     peerConnection.on('data', (data) => {
       if (data && data.action === 'POPUP_OPENED') {
-        showRemoteToast('🔔 TV 알림 팝업 등장! 음성 인식이 시작됩니다.');
-        setTimeout(() => { startVoiceRecognitionFresh(); }, 300);
+        highlightMicPrompt();
       }
     });
   });
@@ -62,6 +58,17 @@ function connectToTV(tvPeerId) {
     console.log('[Remote] P2P 연결 해제됨');
     updateStatusBadge('Local 브라우저 연동 중', '#eab308');
   });
+}
+
+function highlightMicPrompt() {
+  showRemoteToast('🔔 TV 알림 도착! 노란색 [말하기]를 누르고 답해보세요.');
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn && !isListening) {
+    micBtn.classList.add('listening');
+    setTimeout(() => {
+      if (!isListening) micBtn.classList.remove('listening');
+    }, 4000);
+  }
 }
 
 // 신호 전송 함수
@@ -137,6 +144,8 @@ function updateMicButtonUI(status) {
   }
 }
 
+let micSafetyTimer = null;
+
 function startVoiceRecognitionFresh(isAutoRetry = false) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
@@ -146,7 +155,8 @@ function startVoiceRecognitionFresh(isAutoRetry = false) {
     return;
   }
 
-  // 기존 세션 정리
+  // 기존 세션 및 타이머 정리
+  clearTimeout(micSafetyTimer);
   if (recognition) {
     try { recognition.abort(); } catch (e) {}
     recognition = null;
@@ -160,27 +170,37 @@ function startVoiceRecognitionFresh(isAutoRetry = false) {
   try {
     recognition = new SpeechRecognition();
     recognition.lang = 'ko-KR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;      // 0.5초 침묵에도 꺼지지 않도록 true 유지!
+    recognition.interimResults = true;   // 실시간 청취 반응
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       isListening = true;
       autoResumePending = false;
-      console.log('[Remote STT] 마이크 활성화 완료 - 음성 청취 시작');
+      console.log('[Remote STT] 마이크 활성화 완료 - 6초간 청취 유지');
       updateMicButtonUI('listening');
-      showRemoteToast('🎙️ 마이크가 켜졌습니다! 말씀해 주세요.');
+      showRemoteToast('🎙️ 듣고 있습니다! 편하게 말씀하세요.');
+
+      // 6초간 넉넉하게 마이크를 열어두고, 아무 말도 안 하면 그때 자동 종료
+      clearTimeout(micSafetyTimer);
+      micSafetyTimer = setTimeout(() => {
+        if (isListening && recognition) {
+          console.log('[Remote STT] 6초 타임아웃 종료');
+          try { recognition.stop(); } catch (e) {}
+        }
+      }, 6000);
     };
 
     recognition.onend = () => {
       console.log('[Remote STT] 마이크 세션 종료. autoResumePending:', autoResumePending);
+      clearTimeout(micSafetyTimer);
       
-      // 만약 브라우저 권한 팝업을 누르는 사이에 onend가 발생한 경우 -> 자동으로 곧바로 세션 재시작!
+      // 권한 팝업을 누르는 사이에 onend가 발생한 경우 자동 재시작!
       if (autoResumePending) {
         clearTimeout(retryTimer);
         retryTimer = setTimeout(() => {
           if (!isListening) {
-            console.log('[Remote STT] 팝업 승인 감지 ➔ 음성인식 즉시 자동 재시작!');
+            console.log('[Remote STT] 팝업 승인 후 음성인식 자동 재개');
             startVoiceRecognitionFresh(true);
           }
         }, 400);
@@ -194,20 +214,30 @@ function startVoiceRecognitionFresh(isAutoRetry = false) {
 
     recognition.onresult = (event) => {
       autoResumePending = false;
-      if (event.results && event.results[0] && event.results[0][0]) {
-        const transcript = event.results[0][0].transcript.trim();
-        console.log('[Remote STT] 인식된 음성:', transcript);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript.trim();
+        console.log('[Remote STT] 실시간 청취 음성:', transcript);
         showRemoteToast(`🎙️ "${transcript}"`);
-        handleVoiceCommand(transcript);
+
+        // 음성 명령이 일치하면 즉시 전송 후 마이크 깔끔하게 종료!
+        const matched = handleVoiceCommand(transcript);
+        if (matched) {
+          clearTimeout(micSafetyTimer);
+          setTimeout(() => {
+            if (recognition) {
+              try { recognition.stop(); } catch (e) {}
+            }
+          }, 300);
+          break;
+        }
       }
     };
 
     recognition.onerror = (event) => {
       console.warn('[Remote STT 오류 발생]:', event.error);
 
-      // Safari에서 팝업을 띄우거나 누르는 동안 일시적 abort 또는 not-allowed가 뜰 때
+      // Safari 권한 팝업 승인 대기 중 abort나 not-allowed일 때
       if (autoResumePending && (event.error === 'not-allowed' || event.error === 'aborted' || event.error === 'audio-capture')) {
-        console.log('[Remote STT] 권한 승인 대기 중 오류 ➔ 0.5초 뒤 자동 재연결 시도');
         clearTimeout(retryTimer);
         retryTimer = setTimeout(() => {
           if (!isListening) {
@@ -217,14 +247,19 @@ function startVoiceRecognitionFresh(isAutoRetry = false) {
         return;
       }
 
+      // no-speech는 무시하고 계속 듣기 유지
+      if (event.error === 'no-speech') {
+        console.log('[Remote STT] no-speech 감지 - 계속 듣기 유지 중...');
+        return;
+      }
+
+      clearTimeout(micSafetyTimer);
       isListening = false;
       autoResumePending = false;
       updateMicButtonUI('idle');
 
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         showRemoteToast('⚠️ 마이크 사용 권한을 [허용]해 주세요!');
-      } else if (event.error === 'no-speech') {
-        showRemoteToast('⚠️ 음성이 감지되지 않았습니다. 말하기를 다시 눌러주세요.');
       }
       recognition = null;
     };
@@ -232,6 +267,7 @@ function startVoiceRecognitionFresh(isAutoRetry = false) {
     recognition.start();
   } catch (err) {
     console.error('[Remote STT] 시작 예외:', err);
+    clearTimeout(micSafetyTimer);
     isListening = false;
     autoResumePending = false;
     updateMicButtonUI('idle');

@@ -18,14 +18,14 @@ function initSupabase() {
   try {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log('[Supabase] 클라이언트 초기화 완료 ⚡');
-    updateSupabaseStatusBadge('⚡ Supabase 연결됨', '#22c55e');
+    setSupabaseStatus(true);
 
     // 초기 데이터 로드 & 실시간 구독 시작
     fetchLatestMedicationData();
     subscribeToRealtimeUpdates();
   } catch (err) {
     console.error('[Supabase] 초기화 오류:', err);
-    updateSupabaseStatusBadge('⚡ Supabase 오프라인', '#94a3b8');
+    setSupabaseStatus(false);
   }
 }
 
@@ -113,9 +113,15 @@ function subscribeToRealtimeUpdates() {
       )
       .subscribe((status) => {
         console.log('[Supabase Realtime] 구독 상태:', status);
+        if (status === 'SUBSCRIBED') {
+          setSupabaseStatus(true);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setSupabaseStatus(false);
+        }
       });
   } catch (err) {
     console.warn('[Supabase Realtime] 구독 설정 경고:', err);
+    setSupabaseStatus(false);
   }
 }
 
@@ -139,14 +145,35 @@ async function updateSupabaseStatusTaken() {
   }
 }
 
-// 6. 상태 뱃지 표시 헬퍼
-function updateSupabaseStatusBadge(text, color) {
+// 6. 상태 뱃지 표시 헬퍼 (연결됨: 초록색, 연결 안 됨: 빨간색)
+function setSupabaseStatus(isConnected) {
   const badge = document.getElementById('supabase-status-badge');
-  if (badge) {
-    badge.innerText = text;
-    if (color) badge.style.color = color;
+  if (!badge) return;
+
+  if (isConnected) {
+    badge.className = 'supabase-status-badge connected';
+    badge.innerHTML = '<span class="supabase-dot"></span><span>Supabase</span>';
+    badge.title = 'Supabase 연결됨';
+  } else {
+    badge.className = 'supabase-status-badge disconnected';
+    badge.innerHTML = '<span class="supabase-dot"></span><span>Supabase</span>';
+    badge.title = 'Supabase 연결 안 됨';
   }
 }
+
+// 하위 호환성 유지
+function updateSupabaseStatusBadge(text, color) {
+  const isConnected = color === '#22c55e' || color === true || (typeof text === 'string' && text.includes('연결'));
+  setSupabaseStatus(isConnected);
+}
+
+// 온라인/오프라인 네트워크 상태 이벤트 감지
+window.addEventListener('online', () => {
+  if (supabaseClient) setSupabaseStatus(true);
+});
+window.addEventListener('offline', () => {
+  setSupabaseStatus(false);
+});
 
 // 브라우저 로드 시 자동 실행
 window.addEventListener('DOMContentLoaded', () => {

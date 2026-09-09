@@ -205,6 +205,11 @@ function showToast(message, icon = '💡') {
   const container = document.getElementById('toast-container');
   if (!container) return;
 
+  // 화면에 토스트가 수없이 쌓이지 않도록 최대 2개까지만 유지
+  while (container.children.length >= 2) {
+    container.removeChild(container.firstChild);
+  }
+
   const toast = document.createElement('div');
   toast.className = 'toast-message';
   toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
@@ -212,7 +217,7 @@ function showToast(message, icon = '💡') {
 
   setTimeout(() => {
     toast.remove();
-  }, 3000);
+  }, 2500);
 }
 
 // --- 복약 알림 버튼 기능 ---
@@ -678,6 +683,7 @@ function sendPopupOpenedSignal(popupType) {
 // 🎙️ TV 모니터 자체 항시 핸즈프리 음성 인식 (Continuous STT)
 // ----------------------------------------------------
 let tvRecognition = null;
+let lastTvVoiceActionTime = 0;
 
 function initTvVoiceRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -686,7 +692,7 @@ function initTvVoiceRecognition() {
   tvRecognition = new SpeechRecognition();
   tvRecognition.lang = 'ko-KR';
   tvRecognition.continuous = true;
-  tvRecognition.interimResults = true;
+  tvRecognition.interimResults = false; // 중간 음소 오인식 폭주 방지: 완성된 문장만 감지!
 
   tvRecognition.onend = () => {
     setTimeout(() => {
@@ -695,15 +701,18 @@ function initTvVoiceRecognition() {
           tvRecognition.start();
         } catch (e) {}
       }
-    }, 200);
+    }, 500);
   };
 
   tvRecognition.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const transcript = event.results[i][0].transcript.trim();
-      if (transcript) {
-        console.log('[TV STT 음성 수신]:', transcript);
-        handleTvVoiceCommand(transcript);
+      // ⭐️ 핵심: 중간 진행형(interim) 소음 무시, 완성된 발화(isFinal)만 1회 처리!
+      if (event.results[i].isFinal) {
+        const transcript = event.results[i][0].transcript.trim();
+        if (transcript) {
+          console.log('[TV STT 완성 음성 수신]:', transcript);
+          handleTvVoiceCommand(transcript);
+        }
       }
     }
   };
@@ -716,9 +725,15 @@ function initTvVoiceRecognition() {
 }
 
 function handleTvVoiceCommand(text) {
-  // TV 스피커가 안내 방송을 하고 있는 중이면 스피커 소리 오인식 원천 차단!
+  // 1. TV 스피커가 안내 방송을 하고 있는 중이면 스피커 소리 오인식 원천 차단!
   if (isTtsSpeaking) {
     console.log('[TV STT] TV TTS 발화 중 발생한 자체 스피커 소리 무시:', text);
+    return;
+  }
+
+  // 2. 1.5초 내 연속 중복 실행 방지 (디바운스 락)
+  const now = Date.now();
+  if (now - lastTvVoiceActionTime < 1500) {
     return;
   }
 
@@ -730,6 +745,7 @@ function handleTvVoiceCommand(text) {
     '살려주세요', '구급차', '병원', '아파', '아파요', '숨차', '숨이차'
   ];
   if (urgentKeywords.some(kw => lower.includes(kw))) {
+    lastTvVoiceActionTime = now;
     handleRemoteAction('BTN_119');
     return;
   }
@@ -741,18 +757,20 @@ function handleTvVoiceCommand(text) {
     '끊어', '끊을래', '끊자', '통화종료', '종료', '그만', '아직'
   ];
   if (redKeywords.some(kw => lower.includes(kw))) {
+    lastTvVoiceActionTime = now;
     handleRemoteAction('BTN_RED');
     return;
   }
 
-  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사)
+  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사) - 단일 모음 '어' 제외
   const greenKeywords = [
     '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
-    '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어', '어먹었어', '그래',
+    '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어먹었어', '그래',
     '알았어', '알았어요', '알겠어', '알겠어요', '확인', '완료', '수락', '받아', '받아라',
     '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐', '잘잤어', '좋은아침', '안녕'
   ];
   if (greenKeywords.some(kw => lower.includes(kw))) {
+    lastTvVoiceActionTime = now;
     handleRemoteAction('BTN_GREEN');
     return;
   }

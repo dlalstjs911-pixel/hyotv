@@ -70,13 +70,13 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
   };
 
   if (role === 'mother') {
-    // 70대 여성 어르신 톤: 다소 천천히(0.85), 인자하고 낮은 목소리(0.75)
-    utterance.rate = 0.85;
-    utterance.pitch = pitch || 0.75;
+    // 70대 여성 어르신 톤: 다소 천천히(0.82), 인자하고 낮은 목소리(0.72)
+    utterance.rate = 0.82;
+    utterance.pitch = 0.72;
   } else {
-    // 30-40대 중년 딸 톤: 차분하고 자연스러움(0.95)
-    utterance.rate = 0.95;
-    utterance.pitch = pitch || 1.0;
+    // 30-40대 중년 딸 톤: 최초의 정확했던 설정 완벽 복원 (rate: 0.90, pitch: 0.95)
+    utterance.rate = 0.90;
+    utterance.pitch = pitch || 0.95;
   }
 
   const voices = window.speechSynthesis.getVoices();
@@ -85,17 +85,18 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
   if (koreanVoices.length > 0) {
     let selectedVoice = koreanVoices[0];
     if (role === 'mother') {
-      // 70대 어르신 보이스: 네트워크 지연 없는 로컬 보이스 우선 매칭
-      selectedVoice = koreanVoices.find(v => v.localService && !v.name.includes('Google')) ||
-                      koreanVoices.find(v => v.name.toLowerCase().includes('korean')) ||
-                      koreanVoices[koreanVoices.length - 1];
+      // 70대 어르신 여성 보이스: 굵직하고 편안한 보이스 우선 선택 (최초 설정)
+      selectedVoice = koreanVoices.find(v => 
+        v.name.toLowerCase().includes('google') ||
+        v.name.toLowerCase().includes('korean')
+      ) || koreanVoices[koreanVoices.length - 1];
     } else {
-      // ⭐️ 딸 보이스: 고품질 신경망 보이스(Google 한국의, Natural 등) 우선 매칭 -> 없으면 Yuna 등 로컬 보이스
-      selectedVoice = koreanVoices.find(v => v.name.includes('Google') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online')) ||
-                      koreanVoices.find(v => v.name.toLowerCase().includes('yuna')) || 
-                      koreanVoices.find(v => v.name.toLowerCase().includes('sun-hi')) || 
-                      koreanVoices.find(v => v.name.toLowerCase().includes('female')) ||
-                      koreanVoices[0];
+      // 30-40대 딸 보이스: 최초 설정 복원 (Yuna / Sun-Hi / Female)
+      selectedVoice = koreanVoices.find(v => 
+        v.name.toLowerCase().includes('yuna') || 
+        v.name.toLowerCase().includes('sun-hi') || 
+        v.name.toLowerCase().includes('female')
+      ) || koreanVoices[0];
     }
     utterance.voice = selectedVoice;
   }
@@ -172,8 +173,8 @@ function speakMorningGreeting() {
 
   clearTimeout(morningAudioTimeout);
   morningAudioTimeout = setTimeout(() => {
-    // 💡 '잘'의 받침(ㄹ)과 '잤'의 초성(ㅈ) 충돌로 인한 왜곡('잘컸어요/잘캈어요') 방지를 위해 호흡 분절("잘, 잤어요?") 적용
-    speakText("엄마, 좋은 아침이에요. 잘, 잤어요?", 0.95, 'daughter', null, () => {
+    // ⭐️ 최초의 정확했던 텍스트 및 발화 설정 완벽 복원
+    speakText("엄마 좋은 아침이에요. 잘 잤어요?", 0.95, 'daughter', null, () => {
       // ⭐️ 핵심: TV 음성 안내("잘 잤어요?")가 완전히 끝난 뒤에 리모컨 마이크 활성화 신호 전송!
       sendPopupOpenedSignal('morning');
     });

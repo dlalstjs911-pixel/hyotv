@@ -3,11 +3,11 @@
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
 
-// TV에서 팝업이 뜨면 말하기 버튼 강조 및 알림! (강제 마이크 실행 ➔ Safari 보안 차단 방지)
+// TV에서 팝업이 뜨면 사용자가 버튼을 누를 필요 없이 즉시 음성인식(말하기) 자동 활성화!
 broadcastChannel.onmessage = (event) => {
   if (event.data && event.data.action === 'POPUP_OPENED') {
-    console.log('[Remote] TV 팝업 오픈 신호 수신');
-    highlightMicPrompt();
+    console.log('[Remote] BroadcastChannel로 TV 팝업 오픈 신호 수신');
+    handleTvPopupNotification(event.data.popupType);
   }
 };
 
@@ -49,7 +49,8 @@ function connectToTV(tvPeerId) {
 
     peerConnection.on('data', (data) => {
       if (data && data.action === 'POPUP_OPENED') {
-        highlightMicPrompt();
+        console.log('[Remote] PeerJS로 TV 팝업 신호 수신 -> 마이크 즉시 자동 활성화!');
+        handleTvPopupNotification(data.popupType);
       }
     });
   });
@@ -60,15 +61,16 @@ function connectToTV(tvPeerId) {
   });
 }
 
-function highlightMicPrompt() {
-  showRemoteToast('🔔 TV 알림 도착! 노란색 [말하기]를 누르고 답해보세요.');
-  const micBtn = document.getElementById('mic-btn');
-  if (micBtn && !isListening) {
-    micBtn.classList.add('listening');
-    setTimeout(() => {
-      if (!isListening) micBtn.classList.remove('listening');
-    }, 4000);
+// 팝업이 떴을 때 버튼 누를 필요 없이 자동 마이크 활성화
+function handleTvPopupNotification(popupType) {
+  if (navigator.vibrate) {
+    try { navigator.vibrate([120, 80, 120]); } catch (e) {}
   }
+
+  showRemoteToast('🔔 TV 알림 도착! 자동으로 마이크가 켜졌습니다. 말씀하세요!');
+  
+  // 버튼 클릭 없이 즉시 말하기(음성인식) 가동
+  startVoiceRecognitionFresh();
 }
 
 // 신호 전송 함수 (팝업 관통 터치 방어막 탑재)
@@ -309,32 +311,42 @@ function toggleVoiceRecognition() {
   }
 }
 
-// 🟢 초록(O) / 🔴 빨강(X) / 🚨 119 신호 정밀 키워드 매핑
+// 🟢 초록(O) / 🔴 빨강(X) / 🚨 119 신호 정밀 키워드 매핑 (자연어 및 방언/구어체 대폭 확장)
 function handleVoiceCommand(text) {
-  const lower = text.toLowerCase();
+  const lower = text.replace(/\s+/g, '').toLowerCase(); // 공백 제거 후 비교
 
-  // 🚨 119 긴급 명령 ("119", "일일구", "백십구", "구조", "응급", "도와줘")
-  if (
-    lower.includes('119') || lower.includes('일일구') || lower.includes('백십구') ||
-    lower.includes('구조') || lower.includes('응급') || lower.includes('도와줘')
-  ) {
+  // 🚨 119 긴급 명령
+  const urgentKeywords = [
+    '119', '일일구', '백십구', '구조', '응급', '도와줘', '도와줘요', '살려줘',
+    '살려주세요', '구급차', '병원', '아파', '아파요', '숨차', '숨이차'
+  ];
+  if (urgentKeywords.some(kw => lower.includes(kw))) {
+    console.log('[Remote STT] 🚨 119 긴급 키워드 감지:', text);
     sendAction('BTN_119');
     return true;
   }
-  // 🔴 빨강 계열 (복약연기: "나중에", "이따가", "아니" / 통화종료: "거절", "통화 종료", "닫기")
-  else if (
-    lower.includes('나중에') || lower.includes('이따가') || lower.includes('아니') ||
-    lower.includes('거절') || lower.includes('통화 종료') || lower.includes('통화종료') || lower.includes('닫기')
-  ) {
+
+  // 🔴 빨강 계열 (X, 거절, 취소, 연기, 통화 종료)
+  const redKeywords = [
+    '아니', '아니요', '아뇨', '아냐', '안먹', '안먹어', '안먹었', '안먹었어요', '안먹을래',
+    '나중에', '이따가', '이따', '싫어', '싫어요', '거절', '취소', '닫기', '닫아',
+    '끊어', '끊을래', '끊자', '통화종료', '종료', '그만', '아직'
+  ];
+  if (redKeywords.some(kw => lower.includes(kw))) {
+    console.log('[Remote STT] 🔴 빨강(X/거절) 키워드 감지:', text);
     sendAction('BTN_RED');
     return true;
   }
-  // 🟢 초록 계열 (아침인사: "잘 잤어", "좋은 아침", "안녕" / 복약: "먹었어", "약 먹었어", "네" / 통화: "수락", "여보세요", "받아")
-  else if (
-    lower.includes('잘 잤어') || lower.includes('좋은 아침') || lower.includes('안녕') ||
-    lower.includes('먹었어') || lower.includes('약 먹었어') || lower.includes('먹었다') || lower.includes('네') ||
-    lower.includes('수락') || lower.includes('여보세요') || lower.includes('받아')
-  ) {
+
+  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사)
+  const greenKeywords = [
+    '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
+    '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어', '어먹었어', '그래',
+    '알았어', '알았어요', '알겠어', '알겠어요', '확인', '완료', '수락', '받아', '받아라',
+    '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐', '잘잤어', '좋은아침', '안녕'
+  ];
+  if (greenKeywords.some(kw => lower.includes(kw))) {
+    console.log('[Remote STT] 🟢 초록(O/수락) 키워드 감지:', text);
     sendAction('BTN_GREEN');
     return true;
   }
@@ -342,6 +354,24 @@ function handleVoiceCommand(text) {
   return false;
 }
 
+// 모바일 브라우저 오디오 세션 언락 (첫 화면 터치 시 자동 활성화)
+function setupMobileAudioUnlock() {
+  const unlock = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        ctx.resume().then(() => ctx.close());
+      }
+    } catch (e) {}
+    document.removeEventListener('touchstart', unlock);
+    document.removeEventListener('click', unlock);
+  };
+  document.addEventListener('touchstart', unlock, { once: true, passive: true });
+  document.addEventListener('click', unlock, { once: true });
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   initPeerJS();
+  setupMobileAudioUnlock();
 });

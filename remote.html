@@ -4,6 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>효TV - 시니어 가상 리모컨</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -134,7 +137,8 @@
       border-color: #ffffff !important;
       color: #0f172a !important;
       animation: yellowPulse 1.2s infinite;
-      white-space: nowrap;
+      white-space: nowrap !important;
+      font-size: clamp(2rem, 8vw, 2.7rem) !important;
     }
 
     @keyframes yellowPulse {
@@ -232,7 +236,7 @@
   <div id="remote-toast">신호가 TV로 전송되었습니다!</div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="js/remote.js?v=20260909_listening_clean"></script>
+  <script src="js/remote.js?v=20260909_listening_now"></script>
 </body>
 
 </html>

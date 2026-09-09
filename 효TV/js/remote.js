@@ -114,40 +114,21 @@ function updateStatusBadge(text, color) {
 }
 
 // ----------------------------------------------------
-// 🎙️ 아이폰 iOS Safari 하드웨어 마이크 권한 강제 요청 STT
+// 🎙️ 모바일(Safari/Chrome) 친화형 순수 Web Speech API 음성인식
 // ----------------------------------------------------
 let recognition = null;
 let isListening = false;
 
 function startVoiceRecognitionFresh() {
-  // 아이폰 하드웨어 마이크 권한 사전 요청 (Safari 차단 팝업 해결)
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then((stream) => {
-        // 권한 획득 성공 -> 미디어 트랙 해제 후 WebSpeech 실행
-        stream.getTracks().forEach(track => track.stop());
-        runSpeechRecognition();
-      })
-      .catch((err) => {
-        console.warn('[iOS Mic Permission Error]:', err);
-        showRemoteToast('⚠️ 아이폰 마이크 권한이 차단되어 있습니다!');
-        alert('⚠️ 아이폰 마이크 권한이 차단되어 있습니다.\n\n아이폰 [설정] ➡️ [Safari] ➡️ [마이크] 항목을 [허용]으로 변경해 주세요!');
-      });
-  } else {
-    runSpeechRecognition();
-  }
-}
-
-function runSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
     showRemoteToast('⚠️ 이 브라우저는 마이크 음성 인식을 지원하지 않습니다.');
-    alert('⚠️ 아이폰 Safari 또는 Chrome 브라우저를 이용해 주세요.');
+    alert('⚠️ Safari 또는 Chrome 브라우저를 이용해 주세요.');
     return;
   }
 
-  // 기존 인스턴스 정돈
+  // 기존 세션이 있다면 정돈
   if (recognition) {
     try { recognition.abort(); } catch (e) {}
     recognition = null;
@@ -158,6 +139,7 @@ function runSpeechRecognition() {
     recognition.lang = 'ko-KR';
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       isListening = true;
@@ -167,7 +149,7 @@ function runSpeechRecognition() {
         micBtn.classList.add('listening');
         micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
       }
-      showRemoteToast('🎙️ 마이크 작동 중... 또렷하게 말씀해 주세요!');
+      showRemoteToast('🎙️ 듣고 있습니다! 말씀해 주세요.');
     };
 
     recognition.onend = () => {
@@ -178,13 +160,16 @@ function runSpeechRecognition() {
         micBtn.classList.remove('listening');
         micBtn.innerHTML = '<span>🎙️ 말하기</span>';
       }
+      recognition = null;
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.trim();
-      console.log('[Remote STT] 인식된 음성:', transcript);
-      showRemoteToast(`🎙️ 인식됨: "${transcript}"`);
-      handleVoiceCommand(transcript);
+      if (event.results && event.results[0] && event.results[0][0]) {
+        const transcript = event.results[0][0].transcript.trim();
+        console.log('[Remote STT] 인식된 음성:', transcript);
+        showRemoteToast(`🎙️ "${transcript}"`);
+        handleVoiceCommand(transcript);
+      }
     };
 
     recognition.onerror = (event) => {
@@ -197,16 +182,17 @@ function runSpeechRecognition() {
       }
 
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        showRemoteToast('⚠️ 마이크 권한이 거부되었습니다!');
-        alert('⚠️ 아이폰 마이크 권한이 차단되어 있습니다.\n\n아이폰 [설정] ➡️ [Safari] ➡️ [마이크]를 [허용]으로 변경해 주세요!');
+        showRemoteToast('⚠️ 마이크 사용 권한을 허용해 주세요!');
       } else if (event.error === 'no-speech') {
-        showRemoteToast('⚠️ 음성이 감지되지 않았습니다. 말하기 버튼을 누르고 다시 말씀해 주세요.');
+        showRemoteToast('⚠️ 음성이 감지되지 않았습니다. 다시 눌러주세요.');
       }
+      recognition = null;
     };
 
     recognition.start();
   } catch (err) {
     console.error('[Remote STT] 시작 예외:', err);
+    isListening = false;
   }
 }
 

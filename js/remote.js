@@ -168,10 +168,10 @@ function updateMicButtonUI(status) {
 
   if (status === 'listening') {
     micBtn.classList.add('listening');
-    micBtn.innerHTML = '<span>🎙️ 듣는 중... 말씀하세요!</span>';
+    micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
   } else if (status === 'preparing') {
     micBtn.classList.add('listening');
-    micBtn.innerHTML = '<span>🎙️ 마이크 준비 중...</span>';
+    micBtn.innerHTML = '<span>🎙️ 준비 중...</span>';
   } else {
     micBtn.classList.remove('listening');
     micBtn.innerHTML = '<span>🎙️ 말하기</span>';

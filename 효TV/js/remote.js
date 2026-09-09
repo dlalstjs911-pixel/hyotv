@@ -121,12 +121,11 @@ function updateStatusBadge(text, color) {
 }
 
 // ----------------------------------------------------
-// 🎙️ 모바일(Safari/Chrome) 친화형 순수 Web Speech API 음성인식 (권한 승인 후 자동 재개 지원)
+// 🎙️ 아이폰 iOS Safari 최적화 실시간 Web Speech API 음성인식 엔진
 // ----------------------------------------------------
 let recognition = null;
 let isListening = false;
-let autoResumePending = false;
-let retryTimer = null;
+let autoRetryCount = 0;
 
 function updateMicButtonUI(status) {
   const micBtn = document.getElementById('mic-btn');
@@ -134,155 +133,118 @@ function updateMicButtonUI(status) {
 
   if (status === 'listening') {
     micBtn.classList.add('listening');
-    micBtn.innerHTML = '<span>🎙️ 듣는 중...</span>';
+    micBtn.innerHTML = '<span>🎙️ 듣는 중... 말씀하세요!</span>';
   } else if (status === 'preparing') {
     micBtn.classList.add('listening');
-    micBtn.innerHTML = '<span>🎙️ 연결 중...</span>';
+    micBtn.innerHTML = '<span>🎙️ 마이크 준비 중...</span>';
   } else {
     micBtn.classList.remove('listening');
     micBtn.innerHTML = '<span>🎙️ 말하기</span>';
   }
 }
 
-let micSafetyTimer = null;
-
-function startVoiceRecognitionFresh(isAutoRetry = false) {
+function startVoiceRecognitionFresh() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
-    showRemoteToast('⚠️ 이 브라우저는 마이크 음성 인식을 지원하지 않습니다.');
-    alert('⚠️ Safari 또는 Chrome 브라우저를 이용해 주세요.');
+    showRemoteToast('⚠️ 이 브라우저는 음성 인식을 지원하지 않습니다. Safari 또는 Chrome을 이용해 주세요.');
     return;
   }
 
-  // 기존 세션 및 타이머 정리
-  clearTimeout(micSafetyTimer);
+  // 기존 세션이 있다면 확실하게 종료
   if (recognition) {
     try { recognition.abort(); } catch (e) {}
     recognition = null;
   }
 
-  if (!isAutoRetry) {
-    autoResumePending = true;
-    updateMicButtonUI('preparing');
-  }
+  updateMicButtonUI('preparing');
 
-  try {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ko-KR';
-    recognition.continuous = true;      // 0.5초 침묵에도 꺼지지 않도록 true 유지!
-    recognition.interimResults = true;   // 실시간 청취 반응
-    recognition.maxAlternatives = 1;
+  // iOS Safari 오디오 엔진 안정화를 위해 100ms 지연 후 시작
+  setTimeout(() => {
+    try {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'ko-KR';
+      recognition.continuous = false;     // iOS Safari 안정 모드
+      recognition.interimResults = true;  // 실시간 단어 감지
+      recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-      isListening = true;
-      autoResumePending = false;
-      console.log('[Remote STT] 마이크 활성화 완료 - 6초간 청취 유지');
-      updateMicButtonUI('listening');
-      showRemoteToast('🎙️ 듣고 있습니다! 편하게 말씀하세요.');
+      recognition.onstart = () => {
+        isListening = true;
+        autoRetryCount = 0;
+        console.log('[Remote STT] 마이크 활성화 완료');
+        updateMicButtonUI('listening');
+        showRemoteToast('🎙️ 마이크 켜짐! "먹었어", "수락" 등을 말씀하세요.');
+      };
 
-      // 6초간 넉넉하게 마이크를 열어두고, 아무 말도 안 하면 그때 자동 종료
-      clearTimeout(micSafetyTimer);
-      micSafetyTimer = setTimeout(() => {
-        if (isListening && recognition) {
-          console.log('[Remote STT] 6초 타임아웃 종료');
-          try { recognition.stop(); } catch (e) {}
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
         }
-      }, 6000);
-    };
-
-    recognition.onend = () => {
-      console.log('[Remote STT] 마이크 세션 종료. autoResumePending:', autoResumePending);
-      clearTimeout(micSafetyTimer);
-      
-      // 권한 팝업을 누르는 사이에 onend가 발생한 경우 자동 재시작!
-      if (autoResumePending) {
-        clearTimeout(retryTimer);
-        retryTimer = setTimeout(() => {
-          if (!isListening) {
-            console.log('[Remote STT] 팝업 승인 후 음성인식 자동 재개');
-            startVoiceRecognitionFresh(true);
-          }
-        }, 400);
-        return;
-      }
-
-      isListening = false;
-      updateMicButtonUI('idle');
-      recognition = null;
-    };
-
-    recognition.onresult = (event) => {
-      autoResumePending = false;
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript.trim();
-        console.log('[Remote STT] 실시간 청취 음성:', transcript);
+        transcript = transcript.trim();
+        console.log('[Remote STT 실시간 인식]:', transcript);
         showRemoteToast(`🎙️ "${transcript}"`);
 
-        // 음성 명령이 일치하면 즉시 전송 후 마이크 깔끔하게 종료!
+        // 음성 명령 분석
         const matched = handleVoiceCommand(transcript);
         if (matched) {
-          clearTimeout(micSafetyTimer);
-          setTimeout(() => {
-            if (recognition) {
-              try { recognition.stop(); } catch (e) {}
-            }
-          }, 300);
-          break;
+          try { recognition.stop(); } catch (e) {}
+          isListening = false;
+          updateMicButtonUI('idle');
         }
-      }
-    };
+      };
 
-    recognition.onerror = (event) => {
-      console.warn('[Remote STT 오류 발생]:', event.error);
-
-      // Safari 권한 팝업 승인 대기 중 abort나 not-allowed일 때
-      if (autoResumePending && (event.error === 'not-allowed' || event.error === 'aborted' || event.error === 'audio-capture')) {
-        clearTimeout(retryTimer);
-        retryTimer = setTimeout(() => {
-          if (!isListening) {
-            startVoiceRecognitionFresh(true);
+      recognition.onerror = (event) => {
+        console.warn('[Remote STT 에러]:', event.error);
+        
+        if (event.error === 'not-allowed') {
+          showRemoteToast('⚠️ 마이크 권한 필요: Safari 주소창 [가A] ➔ 웹사이트 설정 ➔ 마이크 [허용] 설정');
+          updateMicButtonUI('idle');
+          isListening = false;
+        } else if (event.error === 'no-speech') {
+          // 말소리가 안 들려 끊긴 경우, 버튼을 누른 직후라면 1회 자동 재시도
+          if (autoRetryCount < 1) {
+            autoRetryCount++;
+            console.log('[Remote STT] no-speech 재시도...');
+            setTimeout(() => {
+              if (!isListening) startVoiceRecognitionFresh();
+            }, 200);
+            return;
           }
-        }, 500);
-        return;
-      }
+          showRemoteToast('⚠️ 목소리가 감지되지 않았습니다. [말하기]를 누르고 크게 말씀해 주세요.');
+          updateMicButtonUI('idle');
+          isListening = false;
+        } else {
+          showRemoteToast(`⚠️ 음성 상태: ${event.error}`);
+          updateMicButtonUI('idle');
+          isListening = false;
+        }
+      };
 
-      // no-speech는 무시하고 계속 듣기 유지
-      if (event.error === 'no-speech') {
-        console.log('[Remote STT] no-speech 감지 - 계속 듣기 유지 중...');
-        return;
-      }
+      recognition.onend = () => {
+        console.log('[Remote STT] 마이크 세션 종료');
+        isListening = false;
+        updateMicButtonUI('idle');
+        recognition = null;
+      };
 
-      clearTimeout(micSafetyTimer);
-      isListening = false;
-      autoResumePending = false;
+      recognition.start();
+    } catch (err) {
+      console.error('[Remote STT 시작 예외]:', err);
+      showRemoteToast(`⚠️ 마이크 시작 오류: ${err.message || err}`);
       updateMicButtonUI('idle');
-
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        showRemoteToast('⚠️ 마이크 사용 권한을 [허용]해 주세요!');
-      }
-      recognition = null;
-    };
-
-    recognition.start();
-  } catch (err) {
-    console.error('[Remote STT] 시작 예외:', err);
-    clearTimeout(micSafetyTimer);
-    isListening = false;
-    autoResumePending = false;
-    updateMicButtonUI('idle');
-  }
+      isListening = false;
+    }
+  }, 120);
 }
 
 function toggleVoiceRecognition() {
-  clearTimeout(retryTimer);
   if (isListening && recognition) {
-    autoResumePending = false;
     try { recognition.stop(); } catch (e) {}
     isListening = false;
     updateMicButtonUI('idle');
   } else {
-    startVoiceRecognitionFresh(false);
+    startVoiceRecognitionFresh();
   }
 }
 

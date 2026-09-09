@@ -40,7 +40,12 @@ function initPeerJS() {
 function connectToTV(tvPeerId) {
   if (!peer) return;
   targetPeerId = tvPeerId;
-  peerConnection = peer.connect(tvPeerId);
+
+  if (peerConnection) {
+    try { peerConnection.close(); } catch(e) {}
+  }
+
+  peerConnection = peer.connect(tvPeerId, { reliable: true });
 
   peerConnection.on('open', () => {
     console.log('[Remote] TV 모니터와 P2P 연결 성공!');
@@ -56,12 +61,18 @@ function connectToTV(tvPeerId) {
   });
 
   peerConnection.on('close', () => {
-    console.log('[Remote] P2P 연결 해제됨');
-    updateStatusBadge('Local 브라우저 연동 중', '#eab308');
+    console.log('[Remote] P2P 연결 해제됨 -> 2초 후 자동 재연결');
+    updateStatusBadge('연결 재시도 중... 🟡', '#eab308');
+    setTimeout(() => {
+      connectToTV(tvPeerId);
+    }, 2000);
+  });
+
+  peerConnection.on('error', (err) => {
+    console.warn('[Remote] PeerConnection 에러:', err);
+    updateStatusBadge('연결 재시도 중... 🟡', '#eab308');
   });
 }
-
-let lastToggleTime = 0;
 
 // 팝업이 떴을 때 버튼 누를 필요 없이 자동 마이크 활성화
 function handleTvPopupNotification(popupType) {
@@ -80,28 +91,28 @@ function handleTvPopupNotification(popupType) {
   }
 }
 
-// 신호 전송 함수 (팝업 관통 터치 방어막 탑재)
-let lastActionTime = 0;
-
+// 🟢🔴⚪ O, X, 119 신호 전송 함수 (지연 없이 즉각 100% 전송)
 function sendAction(actionName) {
-  const now = Date.now();
-  // 마이크 팝업 허용을 누를 때 뒤에 있는 버튼이 잘못 눌리는 관통 터치 방어
-  if (now - lastToggleTime < 800) {
-    console.log('[Remote] 마이크 활성화 직후 관통 터치 방어됨:', actionName);
-    return;
-  }
-
   const payload = {
     action: actionName,
     timestamp: Date.now()
   };
 
-  // BroadcastChannel 전송
+  // 1. BroadcastChannel 전송 (동일 기기 테스트용)
   broadcastChannel.postMessage(payload);
 
-  // PeerJS 전송
+  // 2. PeerJS 전송 (외부 스마트폰 -> TV 모니터)
   if (peerConnection && peerConnection.open) {
     peerConnection.send(payload);
+    console.log('[Remote] 신호 전송 성공:', actionName);
+  } else {
+    console.warn('[Remote] PeerJS 연결이 일시 끊김 -> 즉시 재연결 후 전송');
+    connectToTV(targetParam);
+    setTimeout(() => {
+      if (peerConnection && peerConnection.open) {
+        peerConnection.send(payload);
+      }
+    }, 400);
   }
 
   showActionFeedback(actionName);

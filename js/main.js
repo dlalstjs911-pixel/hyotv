@@ -33,12 +33,29 @@ function closeMorningDialogOnly() {
   }
 }
 
+let isTtsSpeaking = false;
+
 // --- 한국어 음성 발화 공통 함수 (딸: 30-40대 중년 여성, 엄마: 70대 여성 어르신 톤) ---
 function speakText(text, pitch = 0.95, role = 'daughter') {
   if (!('speechSynthesis' in window)) return;
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ko-KR';
+
+  // TV TTS 발화 중 자체 마이크 오인식 방지 플래그
+  utterance.onstart = () => {
+    isTtsSpeaking = true;
+    console.log('[TV TTS] 발화 시작 -> TV 자체 마이크 일시 차단');
+  };
+  utterance.onend = () => {
+    setTimeout(() => {
+      isTtsSpeaking = false;
+      console.log('[TV TTS] 발화 완료 -> TV 자체 마이크 재개');
+    }, 1200);
+  };
+  utterance.onerror = () => {
+    isTtsSpeaking = false;
+  };
 
   if (role === 'mother') {
     // 70대 여성 어르신 톤: 다소 천천히(0.82), 인자하고 낮은 목소리(0.72)
@@ -694,6 +711,12 @@ function initTvVoiceRecognition() {
 }
 
 function handleTvVoiceCommand(text) {
+  // TV 스피커가 안내 방송을 하고 있는 중이면 스피커 소리 오인식 원천 차단!
+  if (isTtsSpeaking) {
+    console.log('[TV STT] TV TTS 발화 중 발생한 자체 스피커 소리 무시:', text);
+    return;
+  }
+
   const lower = text.replace(/\s+/g, '').toLowerCase();
 
   // 🚨 119 긴급 명령

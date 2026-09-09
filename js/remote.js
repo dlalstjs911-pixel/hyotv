@@ -2,12 +2,20 @@
 
 // 1. 동일 브라우저/탭 간 연동을 위한 BroadcastChannel
 const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
+let isCallActiveOnTv = false;
 
 // TV에서 팝업이 뜨면 사용자가 버튼을 누를 필요 없이 즉시 음성인식(말하기) 자동 활성화!
 broadcastChannel.onmessage = (event) => {
   if (event.data && event.data.action === 'POPUP_OPENED') {
     console.log('[Remote] BroadcastChannel로 TV 팝업 오픈 신호 수신');
+    isCallActiveOnTv = false;
     handleTvPopupNotification(event.data.popupType);
+  } else if (event.data && event.data.action === 'CALL_STARTED') {
+    console.log('[Remote] 통화 연결 신호 수신 -> 마이크 즉시 종료 (스피커 에코 방지)');
+    isCallActiveOnTv = true;
+    stopVoiceRecognitionGraceful(true);
+  } else if (event.data && event.data.action === 'CALL_ENDED') {
+    isCallActiveOnTv = false;
   }
 };
 
@@ -55,7 +63,14 @@ function connectToTV(tvPeerId) {
     peerConnection.on('data', (data) => {
       if (data && data.action === 'POPUP_OPENED') {
         console.log('[Remote] PeerJS로 TV 팝업 신호 수신 -> 마이크 즉시 자동 활성화!');
+        isCallActiveOnTv = false;
         handleTvPopupNotification(data.popupType);
+      } else if (data && data.action === 'CALL_STARTED') {
+        console.log('[Remote] PeerJS로 통화 연결 신호 수신 -> 마이크 즉시 종료!');
+        isCallActiveOnTv = true;
+        stopVoiceRecognitionGraceful(true);
+      } else if (data && data.action === 'CALL_ENDED') {
+        isCallActiveOnTv = false;
       }
     });
   });
@@ -323,6 +338,18 @@ function toggleVoiceRecognition() {
 // 🟢 초록(O) / 🔴 빨강(X) / 🚨 119 신호 정밀 키워드 매핑 (자연어 및 방언/구어체 대폭 확장)
 function handleVoiceCommand(text) {
   const lower = text.replace(/\s+/g, '').toLowerCase(); // 공백 제거 후 비교
+
+  // ⭐️ [통화 중 보호] TV에서 통화가 진행 중일 때:
+  // 오직 명확한 통화 종료 발화만 BTN_RED로 전송하고, 통화 중 일상 대화('아니', '이따', '먹었어' 등)로 통화가 끊기지 않도록 차단
+  if (isCallActiveOnTv) {
+    const hangupWords = ['통화종료', '전화끊어', '전화끊자', '통화끝', '통화종료해줘', '통화종료할게'];
+    if (hangupWords.some(kw => lower.includes(kw))) {
+      sendAction('BTN_RED');
+      isCallActiveOnTv = false;
+      return true;
+    }
+    return false; // 통화 중 일상 대화는 TV로 신호 전송하지 않고 무시!
+  }
 
   // 🚨 119 긴급 명령
   const urgentKeywords = [

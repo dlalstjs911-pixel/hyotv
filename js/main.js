@@ -277,12 +277,24 @@ function clearConversationSequence() {
 
 // --- 영상통화 수신 [수락] 버튼: 엄마와 딸의 자연스러운 대화 영상 시퀀스 실행 ---
 function handleCallAccept() {
-  // 1. 영상통화 수신 팝업 카드 닫기
+  // 1. 남아있는 영상통화 수신 예약 타이머 즉시 취소 (팝업 재오픈 원천 차단!)
+  clearTimeout(videoCallTimer);
+  videoCallTimer = null;
+
+  // 2. 카운트다운 뱃지 및 영상통화 수신 팝업 카드 확실히 숨김
+  const countdownBadge = document.getElementById('videocall-countdown-badge');
+  if (countdownBadge) {
+    countdownBadge.style.opacity = '0';
+  }
   const popupCard = document.getElementById('videocall-popup-card');
   if (popupCard) {
     popupCard.classList.add('hide-card');
   }
 
+  // 3. 리모컨으로 통화 시작 신호 전송 -> 리모컨 마이크 자동 음소거(스피커 에코로 인한 통화 끊김 차단)
+  sendCallSignal('CALL_STARTED');
+
+  // 4. 5:5 대화화면 모달 오픈
   openModal('modal-videocall-active');
   showToast('딸 지영이와 영상통화가 연결되었습니다.', '📞');
 
@@ -356,20 +368,28 @@ function startMotherDaughterConversation() {
 }
 
 function handleCallDecline() {
+  clearTimeout(videoCallTimer);
+  videoCallTimer = null;
+
   const popupCard = document.getElementById('videocall-popup-card');
   if (popupCard) {
     popupCard.classList.add('hide-card');
   }
+  sendCallSignal('CALL_ENDED');
   showToast('영상통화를 거절하였습니다. 이전 TV 방송으로 돌아갑니다.', '📺');
 }
 
 // [통화 종료] 버튼 클릭 시 라이브 통화 창과 수신 카드가 모두 닫히며 일일 드라마 TV 화면으로 바로 복귀!
 function endCall() {
+  clearTimeout(videoCallTimer);
+  videoCallTimer = null;
+
   closeModal('modal-videocall-active');
   const popupCard = document.getElementById('videocall-popup-card');
   if (popupCard) {
     popupCard.classList.add('hide-card');
   }
+  sendCallSignal('CALL_ENDED');
   showToast('영상통화가 종료되었습니다. 일일 드라마 시청 화면으로 돌아갑니다.', '📺');
 }
 
@@ -695,6 +715,25 @@ function sendPopupOpenedSignal(popupType) {
   }
 }
 
+// 영상통화 시작/종료 상태를 리모컨으로 브로드캐스팅하여 리모컨 마이크 자동 온오프 제어
+function sendCallSignal(actionType) {
+  const payload = {
+    action: actionType,
+    timestamp: Date.now()
+  };
+
+  try {
+    const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
+    broadcastChannel.postMessage(payload);
+  } catch(e) {}
+
+  try {
+    if (activeRemoteConn && activeRemoteConn.open) {
+      activeRemoteConn.send(payload);
+    }
+  } catch(e) {}
+}
+
 // ----------------------------------------------------
 // 🎙️ TV 모니터 자체 항시 핸즈프리 음성 인식 (Continuous STT)
 // ----------------------------------------------------
@@ -757,6 +796,21 @@ function handleTvVoiceCommand(text) {
   // 2. 1.5초 내 연속 중복 실행 방지 (디바운스 락)
   const now = Date.now();
   if (now - lastTvVoiceActionTime < 1500) {
+    return;
+  }
+
+  // ⭐️ 3. [초중요 버그 수정] 영상통화 라이브 진행 중일 때의 음성 보호!
+  const activeCallModal = document.getElementById('modal-videocall-active');
+  const isCallActive = activeCallModal && activeCallModal.classList.contains('open');
+  if (isCallActive) {
+    // 통화 중에는 오직 명확한 통화 종료 음성("통화종료", "전화끊어", "통화끝", "전화끊자", "끊어")만 인식!
+    // '아니', '이따', '싫어', '아직', '안돼', '먹었어' 등 통화 중 일상 대화로 인해 통화가 닫히는 현상을 원천 차단!
+    const callHangupKeywords = ['통화종료', '전화끊어', '전화끊자', '통화끝', '통화종료해줘', '통화종료할게'];
+    if (callHangupKeywords.some(kw => lower.includes(kw))) {
+      lastTvVoiceActionTime = now;
+      handleRemoteAction('BTN_RED');
+    }
+    // 그 외 통화 중 모든 대화는 통화 유지!
     return;
   }
 

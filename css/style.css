@@ -1156,6 +1156,10 @@ body, html {
 /* ----------------------------------------------------
    5:5 TV 화면 전체(100vw x 100vh Fullscreen) 꽉 찬 라이브 영상 통화 스타일
 ---------------------------------------------------- */
+.custom-modal-overlay.full-video-modal {
+  z-index: 3000 !important;
+}
+
 .full-video-modal .active-call-card.split-screen-card {
   width: 100vw;
   height: 100vh;
@@ -1166,6 +1170,7 @@ body, html {
   border: none;
   position: fixed;
   inset: 0;
+  z-index: 3000;
   display: flex;
   flex-direction: column;
   box-shadow: none;

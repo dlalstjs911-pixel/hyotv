@@ -505,25 +505,35 @@ function handleRemoteAction(action) {
   switch (action) {
     // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
     case 'BTN_GREEN':
-      if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
-        handleCallAccept();
-        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
-      } else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
-        handleMedicationTaken();
-        showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
-      } else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+      // 1. 아침 인사 대화창이 떠 있는 경우 -> "잘 잤어" 즉시 응답 및 팝업 닫기
+      if (morningWindow && !morningWindow.classList.contains('hide-dialog')) {
         handleMorningDialogClick();
         showToast('📱 [초록 버튼] 아침 인사 "잘 잤어" 응답 완료!', '🟢');
-      } else {
-        // 현재 위치 페이지에 따라 긍정 액션 실행
-        if (currentHash === 'videocall') {
+      }
+      // 2. 영상통화 수신 팝업이 떠 있는 경우 -> 수락
+      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card')) {
+        handleCallAccept();
+        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
+      }
+      // 3. 복약 알림 팝업이 떠 있는 경우 -> 복약 완료 처리
+      else if (medPopupCard && !medPopupCard.classList.contains('hide-card')) {
+        handleMedicationTaken();
+        showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
+      }
+      // 4. 열려 있는 커스텀 모달이 있는 경우 -> 닫기/확인
+      else {
+        const openModalElem = document.querySelector('.custom-modal-overlay.open');
+        if (openModalElem) {
+          openModalElem.classList.remove('open');
+          showToast('📱 [초록 버튼] 확인 처리되었습니다.', '🟢');
+        } else if (currentHash === 'morning') {
+          handleMorningDialogClick();
+        } else if (currentHash === 'videocall') {
           handleCallAccept();
         } else if (currentHash === 'medication') {
           handleMedicationTaken();
-        } else if (currentHash === 'morning') {
-          handleMorningDialogClick();
         } else {
-          showToast('📱 [초록 버튼] 버튼이 선택되었습니다.', '🟢');
+          showToast('📱 [초록 버튼] 확인되었습니다.', '🟢');
         }
       }
       break;
@@ -535,34 +545,29 @@ function handleRemoteAction(action) {
         endCall();
         showToast('📱 [빨강 버튼] 영상통화를 종료했습니다.', '🔴');
       }
-      // 2. 영상통화 수신 알림 팝업이 떠 있는 경우 -> 거절
-      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
-        handleCallDecline();
-        showToast('📱 [빨강 버튼] 영상통화를 거절했습니다.', '🔴');
-      }
-      // 3. 복약 알림 팝업이 떠 있는 경우 -> 나중에 먹을게
-      else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
-        handleMedicationSnooze();
-        showToast('📱 [빨강 버튼] 복약이 연기되었습니다.', '🔴');
-      }
-      // 4. 아침 인사 팝업이 떠 있는 경우 -> 닫기
-      else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+      // 2. 아침 인사 대화창이 떠 있는 경우 -> 닫기
+      else if (morningWindow && !morningWindow.classList.contains('hide-dialog')) {
         closeMorningDialogOnly();
         showToast('📱 [빨강 버튼] 아침 인사가 닫혔습니다.', '🔴');
       }
-      // 5. 기본 닫기 / 거절 분기
+      // 3. 복약 알림 팝업이 떠 있는 경우 -> 나중에 먹을게
+      else if (medPopupCard && !medPopupCard.classList.contains('hide-card')) {
+        handleMedicationSnooze();
+        showToast('📱 [빨강 버튼] 복약이 연기되었습니다.', '🔴');
+      }
+      // 4. 영상통화 수신 알림 팝업이 떠 있는 경우 -> 거절
+      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card')) {
+        handleCallDecline();
+        showToast('📱 [빨강 버튼] 영상통화를 거절했습니다.', '🔴');
+      }
+      // 5. 열려 있는 모달창 닫기
       else {
-        if (currentHash === 'videocall') {
-          handleCallDecline();
-        } else if (currentHash === 'medication') {
-          handleMedicationSnooze();
+        const openModalElem = document.querySelector('.custom-modal-overlay.open');
+        if (openModalElem) {
+          openModalElem.classList.remove('open');
+          showToast('📱 [빨강 버튼] 팝업 창을 닫았습니다.', '🔴');
         } else {
-          // 열려 있는 아무 모달이나 닫기
-          const openModalElem = document.querySelector('.custom-modal-overlay.open');
-          if (openModalElem) {
-            openModalElem.classList.remove('open');
-            showToast('📱 [빨강 버튼] 팝업 창을 닫았습니다.', '🔴');
-          }
+          showToast('📱 [빨강 버튼] 취소되었습니다.', '🔴');
         }
       }
       break;

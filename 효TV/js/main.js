@@ -689,13 +689,39 @@ function initTvVoiceRecognition() {
 }
 
 function handleTvVoiceCommand(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('119') || lower.includes('일일구') || lower.includes('백십구') || lower.includes('구조') || lower.includes('응급') || lower.includes('도와줘')) {
+  const lower = text.replace(/\s+/g, '').toLowerCase();
+
+  // 🚨 119 긴급 명령
+  const urgentKeywords = [
+    '119', '일일구', '백십구', '구조', '응급', '도와줘', '도와줘요', '살려줘',
+    '살려주세요', '구급차', '병원', '아파', '아파요', '숨차', '숨이차'
+  ];
+  if (urgentKeywords.some(kw => lower.includes(kw))) {
     handleRemoteAction('BTN_119');
-  } else if (lower.includes('나중에') || lower.includes('이따가') || lower.includes('아니') || lower.includes('거절') || lower.includes('통화 종료') || lower.includes('통화종료') || lower.includes('닫기')) {
+    return;
+  }
+
+  // 🔴 빨강 계열 (X, 거절, 취소, 연기, 통화 종료)
+  const redKeywords = [
+    '아니', '아니요', '아뇨', '아냐', '안먹', '안먹어', '안먹었', '안먹었어요', '안먹을래',
+    '나중에', '이따가', '이따', '싫어', '싫어요', '거절', '취소', '닫기', '닫아',
+    '끊어', '끊을래', '끊자', '통화종료', '종료', '그만', '아직'
+  ];
+  if (redKeywords.some(kw => lower.includes(kw))) {
     handleRemoteAction('BTN_RED');
-  } else if (lower.includes('잘 잤어') || lower.includes('좋은 아침') || lower.includes('안녕') || lower.includes('먹었어') || lower.includes('약 먹었어') || lower.includes('먹었다') || lower.includes('네') || lower.includes('수락') || lower.includes('여보세요') || lower.includes('받아')) {
+    return;
+  }
+
+  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사)
+  const greenKeywords = [
+    '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
+    '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어', '어먹었어', '그래',
+    '알았어', '알았어요', '알겠어', '알겠어요', '확인', '완료', '수락', '받아', '받아라',
+    '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐', '잘잤어', '좋은아침', '안녕'
+  ];
+  if (greenKeywords.some(kw => lower.includes(kw))) {
     handleRemoteAction('BTN_GREEN');
+    return;
   }
 }
 

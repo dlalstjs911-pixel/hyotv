@@ -71,8 +71,17 @@ function highlightMicPrompt() {
   }
 }
 
-// 신호 전송 함수
+// 신호 전송 함수 (팝업 관통 터치 방어막 탑재)
+let lastActionTime = 0;
+
 function sendAction(actionName) {
+  const now = Date.now();
+  // 마이크 팝업 허용을 누를 때 뒤에 있는 버튼이 잘못 눌리는 관통 터치 방어
+  if (now - lastToggleTime < 800) {
+    console.log('[Remote] 마이크 활성화 직후 관통 터치 방어됨:', actionName);
+    return;
+  }
+
   const payload = {
     action: actionName,
     timestamp: Date.now()
@@ -238,11 +247,22 @@ function startVoiceRecognitionFresh() {
   }, 120);
 }
 
+let lastToggleTime = 0;
+
 function toggleVoiceRecognition() {
+  const now = Date.now();
+  // 팝업 [허용] 누를 때 화면으로 관통되는 중복 터치 무시 방어막 (1.2초)
+  if (now - lastToggleTime < 1200) {
+    console.log('[Remote STT] 관통/중복 터치 방어됨');
+    return;
+  }
+  lastToggleTime = now;
+
   if (isListening && recognition) {
     try { recognition.stop(); } catch (e) {}
     isListening = false;
     updateMicButtonUI('idle');
+    showRemoteToast('🎙️ 마이크가 꺼졌습니다.');
   } else {
     startVoiceRecognitionFresh();
   }

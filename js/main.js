@@ -90,11 +90,12 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
                       koreanVoices.find(v => v.name.toLowerCase().includes('korean')) ||
                       koreanVoices[koreanVoices.length - 1];
     } else {
-      selectedVoice = koreanVoices.find(v => 
-        v.name.toLowerCase().includes('yuna') || 
-        v.name.toLowerCase().includes('sun-hi') || 
-        v.name.toLowerCase().includes('female')
-      ) || koreanVoices[0];
+      // ⭐️ 딸 보이스: 고품질 신경망 보이스(Google 한국의, Natural 등) 우선 매칭 -> 없으면 Yuna 등 로컬 보이스
+      selectedVoice = koreanVoices.find(v => v.name.includes('Google') || v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online')) ||
+                      koreanVoices.find(v => v.name.toLowerCase().includes('yuna')) || 
+                      koreanVoices.find(v => v.name.toLowerCase().includes('sun-hi')) || 
+                      koreanVoices.find(v => v.name.toLowerCase().includes('female')) ||
+                      koreanVoices[0];
     }
     utterance.voice = selectedVoice;
   }
@@ -171,8 +172,8 @@ function speakMorningGreeting() {
 
   clearTimeout(morningAudioTimeout);
   morningAudioTimeout = setTimeout(() => {
-    // 💡 TTS 엔진(Yuna 등)에서 '잘 잤어요'의 받침 'ㅆ' 왜곡([잘 컸어요?]) 방지를 위해 음운 표기 '잘 자써요?' 적용
-    speakText("엄마, 좋은 아침이에요. 잘 자써요?", 0.95, 'daughter', null, () => {
+    // 💡 '잘'의 받침(ㄹ)과 '잤'의 초성(ㅈ) 충돌로 인한 왜곡('잘컸어요/잘캈어요') 방지를 위해 호흡 분절("잘, 잤어요?") 적용
+    speakText("엄마, 좋은 아침이에요. 잘, 잤어요?", 0.95, 'daughter', null, () => {
       // ⭐️ 핵심: TV 음성 안내("잘 잤어요?")가 완전히 끝난 뒤에 리모컨 마이크 활성화 신호 전송!
       sendPopupOpenedSignal('morning');
     });
@@ -820,7 +821,7 @@ function handleTvVoiceCommand(text) {
 
   // 1. TV 자체 안내 멘트(에코) 방지: TV가 스스로 말한 안내 문장 자체는 무시
   const tvPromptEchoes = [
-    '엄마좋은아침이에요잘잤어요', '좋은아침이에요잘잤어요', '잘잤어요', '잘자써요', '잘잤니',
+    '엄마좋은아침이에요잘잤어요', '좋은아침이에요잘잤어요', '잘잤어요', '잘자써요', '잘캈어요', '잘컸어요', '잘주무셨어요', '잘잤니',
     '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요', '좋은아침',
     '엄마약먹을시간', '약먹을시간이야', '약먹을시간',
     '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요'

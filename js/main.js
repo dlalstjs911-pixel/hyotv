@@ -277,6 +277,12 @@ function clearConversationSequence() {
 
 // --- 영상통화 수신 [수락] 버튼: 엄마와 딸의 자연스러운 대화 영상 시퀀스 실행 ---
 function handleCallAccept() {
+  // 1. 영상통화 수신 팝업 카드 닫기
+  const popupCard = document.getElementById('videocall-popup-card');
+  if (popupCard) {
+    popupCard.classList.add('hide-card');
+  }
+
   openModal('modal-videocall-active');
   showToast('딸 지영이와 영상통화가 연결되었습니다.', '📞');
 
@@ -529,32 +535,47 @@ function handleRemoteAction(action) {
   // 현재 활성화된 화면 식별
   const activePageEl = document.querySelector('.tv-page.active');
   const activePageId = activePageEl ? activePageEl.id.replace('page-', '') : (window.location.hash.replace('#', '') || 'overview');
-  const openModalElem = document.querySelector('.custom-modal-overlay.open');
+  
+  // ⭐️ 핵심: 영상통화 모달(modal-videocall-active)은 '일반 알림 확인 모달'이 아니므로,
+  // 초록 버튼(확인/수락/대화)으로 닫히면 안 됨! 오직 통화 종료(빨강 버튼)로만 닫혀야 함!
+  const isCallActive = activeCallModal && activeCallModal.classList.contains('open');
+  const openModalElem = document.querySelector('.custom-modal-overlay.open:not(#modal-videocall-active)');
 
   switch (action) {
     // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
     case 'BTN_GREEN':
-      // 1. 열려 있는 모달이 있는 경우 -> 닫기 / 확인
+      // 0. 영상통화가 이미 연결되어 통화 중인 경우 -> 통화 중 대화("응", "그래", "알았어" 등)이므로 화면을 닫지 않고 유지
+      if (isCallActive) {
+        return;
+      }
+
+      // 1. 영상통화 수신 팝업이 떠 있는 경우 -> 즉시 통화 수락!
+      if (videoPopupCard && !videoPopupCard.classList.contains('hide-card')) {
+        handleCallAccept();
+        return;
+      }
+
+      // 2. 열려 있는 일반 모달이 있는 경우 -> 닫기 / 확인
       if (openModalElem) {
         openModalElem.classList.remove('open');
         showToast('📱 [초록 버튼] 확인 처리되었습니다.', '🟢');
       }
-      // 2. 아침 인사 페이지인 경우
+      // 3. 아침 인사 페이지인 경우
       else if (activePageId === 'morning') {
         handleMorningDialogClick();
         showToast('📱 [초록 버튼] 아침 인사 "잘 잤어" 응답 완료!', '🟢');
       }
-      // 3. 복약 알림 페이지인 경우
+      // 4. 복약 알림 페이지인 경우
       else if (activePageId === 'medication') {
         handleMedicationTaken();
         showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
       }
-      // 4. 영상통화 페이지인 경우
+      // 5. 영상통화 페이지인 경우
       else if (activePageId === 'videocall') {
         handleCallAccept();
         showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
       }
-      // 5. 기타 화면
+      // 6. 기타 화면
       else {
         showToast('📱 [초록 버튼] 확인되었습니다.', '🟢');
       }
@@ -725,10 +746,11 @@ function handleTvVoiceCommand(text) {
   // 1. TV 자체 안내 멘트(에코) 방지: TV가 스스로 말한 안내 문장 자체는 무시 (사용자의 "잘 잤어", "먹었어" 등은 즉시 통과)
   const tvPromptEchoes = [
     '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요',
-    '엄마약먹을시간', '약먹을시간이야', '약먹을시간'
+    '엄마약먹을시간', '약먹을시간이야', '약먹을시간',
+    '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요'
   ];
   if (isTtsSpeaking && tvPromptEchoes.some(echo => lower.includes(echo))) {
-    console.log('[TV STT] TV 자체 안내 방송 에코 무시:', text);
+    console.log('[TV STT] TV 자체 안내 방송/대화 에코 무시:', text);
     return;
   }
 

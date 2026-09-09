@@ -104,6 +104,7 @@ function triggerMedicationNotice() {
     
     setTimeout(() => {
       speakMedicationNotice();
+      sendPopupOpenedSignal('medication');
     }, 500);
   }, 3000);
 }
@@ -130,6 +131,7 @@ function triggerVideoCallNotice() {
       countdownBadge.style.opacity = '0';
     }
     showToast('📞 [영상통화 수신] 딸 지영이에게 걸려온 영상통화입니다!', '📞');
+    sendPopupOpenedSignal('videocall');
   }, 3000);
 }
 
@@ -366,6 +368,7 @@ function switchPage(pageId) {
     const win = document.getElementById('morning-dialog-window');
     if (win) win.classList.remove('hide-dialog');
     speakMorningGreeting();
+    sendPopupOpenedSignal('morning');
   } else if (pageId === 'medication') {
     triggerMedicationNotice();
   } else if (pageId === 'videocall') {
@@ -445,4 +448,258 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
     }
   });
+
+  // ----------------------------------------------------
+  // 📱 스마트폰 가상 리모컨 수신기 (BroadcastChannel + PeerJS)
+  // ----------------------------------------------------
+  initRemoteReceiver();
 });
+
+let activeRemoteConn = null;
+
+function initRemoteReceiver() {
+  // 1. BroadcastChannel 수신 (동일 PC / 브라우저 탭 연동)
+  const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
+  broadcastChannel.onmessage = (event) => {
+    if (event.data && event.data.action) {
+      console.log('[TV Listener] BroadcastChannel 수신 액션:', event.data.action);
+      handleRemoteAction(event.data.action);
+    }
+  };
+
+  // 2. PeerJS 수신 (외부 스마트폰 <-> PC 모니터 P2P 연동)
+  try {
+    if (typeof Peer !== 'undefined') {
+      const peer = new Peer('hyotv-main-screen');
+      peer.on('open', (id) => {
+        console.log('[TV Listener] TV Peer 준비 완료. ID:', id);
+      });
+      peer.on('connection', (conn) => {
+        console.log('[TV Listener] 스마트폰 리모컨이 연결되었습니다!');
+        activeRemoteConn = conn;
+        showToast('📱 스마트폰 리모컨이 연결되었습니다!', '🟢');
+        conn.on('data', (data) => {
+          if (data && data.action) {
+            console.log('[TV Listener] PeerJS 수신 액션:', data.action);
+            handleRemoteAction(data.action);
+          }
+        });
+      });
+      peer.on('error', (err) => {
+        console.warn('[TV Listener] PeerJS 연결 경고 (Local BroadcastChannel 사용):', err);
+      });
+    }
+  } catch (e) {
+    console.warn('[TV Listener] PeerJS 로드 실패:', e);
+  }
+}
+
+// 리모컨 신호에 따른 TV 화면 팝업 제어 및 화면 전환
+function handleRemoteAction(action) {
+  const activeCallModal = document.getElementById('modal-videocall-active');
+  const videoPopupCard = document.getElementById('videocall-popup-card');
+  const medPopupCard = document.getElementById('medication-popup-card');
+  const morningWindow = document.getElementById('morning-dialog-window');
+  const currentHash = window.location.hash.replace('#', '') || 'overview';
+
+  switch (action) {
+    // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
+    case 'BTN_GREEN':
+      if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
+        handleCallAccept();
+        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
+      } else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
+        handleMedicationTaken();
+        showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
+      } else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+        handleMorningDialogClick();
+        showToast('📱 [초록 버튼] 아침 인사 "잘 잤어" 응답 완료!', '🟢');
+      } else {
+        // 현재 위치 페이지에 따라 긍정 액션 실행
+        if (currentHash === 'videocall') {
+          handleCallAccept();
+        } else if (currentHash === 'medication') {
+          handleMedicationTaken();
+        } else if (currentHash === 'morning') {
+          handleMorningDialogClick();
+        } else {
+          showToast('📱 [초록 버튼] 버튼이 선택되었습니다.', '🟢');
+        }
+      }
+      break;
+
+    // 🔴 빨강 버튼: 거절 / 나중에 / 통화 종료 / 닫기
+    case 'BTN_RED':
+      // 1. 영상통화 진행 중인 라이브 모달이 열려 있는 경우 -> 통화 종료
+      if (activeCallModal && activeCallModal.classList.contains('open')) {
+        endCall();
+        showToast('📱 [빨강 버튼] 영상통화를 종료했습니다.', '🔴');
+      }
+      // 2. 영상통화 수신 알림 팝업이 떠 있는 경우 -> 거절
+      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card') && currentHash === 'videocall') {
+        handleCallDecline();
+        showToast('📱 [빨강 버튼] 영상통화를 거절했습니다.', '🔴');
+      }
+      // 3. 복약 알림 팝업이 떠 있는 경우 -> 나중에 먹을게
+      else if (medPopupCard && !medPopupCard.classList.contains('hide-card') && currentHash === 'medication') {
+        handleMedicationSnooze();
+        showToast('📱 [빨강 버튼] 복약이 연기되었습니다.', '🔴');
+      }
+      // 4. 아침 인사 팝업이 떠 있는 경우 -> 닫기
+      else if (morningWindow && !morningWindow.classList.contains('hide-dialog') && currentHash === 'morning') {
+        closeMorningDialogOnly();
+        showToast('📱 [빨강 버튼] 아침 인사가 닫혔습니다.', '🔴');
+      }
+      // 5. 기본 닫기 / 거절 분기
+      else {
+        if (currentHash === 'videocall') {
+          handleCallDecline();
+        } else if (currentHash === 'medication') {
+          handleMedicationSnooze();
+        } else {
+          // 열려 있는 아무 모달이나 닫기
+          const openModalElem = document.querySelector('.custom-modal-overlay.open');
+          if (openModalElem) {
+            openModalElem.classList.remove('open');
+            showToast('📱 [빨강 버튼] 팝업 창을 닫았습니다.', '🔴');
+          }
+        }
+      }
+      break;
+
+    // ⚪ 흰색 버튼: 🚨 119 긴급 구조 요청
+    case 'BTN_119':
+      openModal('modal-emergency-119');
+      showToast('🚨 [119 긴급 구조] 119 구급대 및 자녀에게 위치와 알림이 발송되었습니다!', '🚨');
+      speakText('백십구 긴급 구조 요청이 접수되었습니다. 자녀와 구급대에 알림을 보냅니다.', 0.95, 'daughter');
+      break;
+
+    case 'MORNING_REPLY':
+      if (window.location.hash !== '#morning') switchPage('morning');
+      handleMorningDialogClick();
+      break;
+
+    case 'MED_TAKEN':
+      if (window.location.hash !== '#medication') switchPage('medication');
+      handleMedicationTaken();
+      break;
+
+    case 'MED_SNOOZE':
+      if (window.location.hash !== '#medication') switchPage('medication');
+      handleMedicationSnooze();
+      break;
+
+    case 'CALL_ACCEPT':
+      if (window.location.hash !== '#videocall') switchPage('videocall');
+      handleCallAccept();
+      break;
+
+    case 'CALL_DECLINE':
+      if (window.location.hash !== '#videocall') switchPage('videocall');
+      handleCallDecline();
+      break;
+
+    case 'CALL_END':
+      endCall();
+      break;
+
+    case 'NAV_OVERVIEW':
+      switchPage('overview');
+      showToast('📱 [리모컨] 서비스 소개 화면으로 이동', '📺');
+      break;
+
+    case 'NAV_MORNING':
+      switchPage('morning');
+      showToast('📱 [리모컨] 아침 인사 화면으로 이동', '📺');
+      break;
+
+    case 'NAV_MEDICATION':
+      switchPage('medication');
+      showToast('📱 [리모컨] 복약 알림 화면으로 이동', '📺');
+      break;
+
+    case 'NAV_VIDEOCALL':
+      switchPage('videocall');
+      showToast('📱 [리모컨] 영상 통화 화면으로 이동', '📺');
+      break;
+
+    default:
+      console.warn('[TV Listener] 알 수 없는 액션:', action);
+      break;
+  }
+}
+
+function sendPopupOpenedSignal(popupType) {
+  const payload = {
+    action: 'POPUP_OPENED',
+    popupType: popupType,
+    timestamp: Date.now()
+  };
+
+  // 1. BroadcastChannel 전송 (동일 브라우저 탭)
+  const broadcastChannel = new BroadcastChannel('hyotv_remote_channel');
+  broadcastChannel.postMessage(payload);
+
+  // 2. PeerJS P2P 연결된 외부 스마트폰으로 전송
+  if (activeRemoteConn && activeRemoteConn.open) {
+    activeRemoteConn.send(payload);
+    console.log('[TV Listener] PeerJS로 POPUP_OPENED 신호 전송 완료!');
+  }
+}
+
+// ----------------------------------------------------
+// 🎙️ TV 모니터 자체 항시 핸즈프리 음성 인식 (Continuous STT)
+// ----------------------------------------------------
+let tvRecognition = null;
+
+function initTvVoiceRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  tvRecognition = new SpeechRecognition();
+  tvRecognition.lang = 'ko-KR';
+  tvRecognition.continuous = true;
+  tvRecognition.interimResults = true;
+
+  tvRecognition.onend = () => {
+    setTimeout(() => {
+      if (tvRecognition) {
+        try {
+          tvRecognition.start();
+        } catch (e) {}
+      }
+    }, 200);
+  };
+
+  tvRecognition.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      const transcript = event.results[i][0].transcript.trim();
+      if (transcript) {
+        console.log('[TV STT 음성 수신]:', transcript);
+        handleTvVoiceCommand(transcript);
+      }
+    }
+  };
+
+  tvRecognition.onerror = (err) => {};
+
+  try {
+    tvRecognition.start();
+  } catch (e) {}
+}
+
+function handleTvVoiceCommand(text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('119') || lower.includes('일일구') || lower.includes('백십구') || lower.includes('구조') || lower.includes('응급') || lower.includes('도와줘')) {
+    handleRemoteAction('BTN_119');
+  } else if (lower.includes('나중에') || lower.includes('이따가') || lower.includes('아니') || lower.includes('거절') || lower.includes('통화 종료') || lower.includes('통화종료') || lower.includes('닫기')) {
+    handleRemoteAction('BTN_RED');
+  } else if (lower.includes('잘 잤어') || lower.includes('좋은 아침') || lower.includes('안녕') || lower.includes('먹었어') || lower.includes('약 먹었어') || lower.includes('먹었다') || lower.includes('네') || lower.includes('수락') || lower.includes('여보세요') || lower.includes('받아')) {
+    handleRemoteAction('BTN_GREEN');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initTvVoiceRecognition();
+});
+

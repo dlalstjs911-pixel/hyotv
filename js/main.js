@@ -527,41 +527,38 @@ function handleRemoteAction(action) {
   const videoPopupCard = document.getElementById('videocall-popup-card');
   const medPopupCard = document.getElementById('medication-popup-card');
   const morningWindow = document.getElementById('morning-dialog-window');
-  const currentHash = window.location.hash.replace('#', '') || 'overview';
+  
+  // 현재 활성화된 화면 식별
+  const activePageEl = document.querySelector('.tv-page.active');
+  const activePageId = activePageEl ? activePageEl.id.replace('page-', '') : (window.location.hash.replace('#', '') || 'overview');
+  const openModalElem = document.querySelector('.custom-modal-overlay.open');
 
   switch (action) {
     // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
     case 'BTN_GREEN':
-      // 1. 아침 인사 대화창이 떠 있는 경우 -> "잘 잤어" 즉시 응답 및 팝업 닫기
-      if (morningWindow && !morningWindow.classList.contains('hide-dialog')) {
+      // 1. 열려 있는 모달이 있는 경우 -> 닫기 / 확인
+      if (openModalElem) {
+        openModalElem.classList.remove('open');
+        showToast('📱 [초록 버튼] 확인 처리되었습니다.', '🟢');
+      }
+      // 2. 아침 인사 페이지인 경우
+      else if (activePageId === 'morning') {
         handleMorningDialogClick();
         showToast('📱 [초록 버튼] 아침 인사 "잘 잤어" 응답 완료!', '🟢');
       }
-      // 2. 영상통화 수신 팝업이 떠 있는 경우 -> 수락
-      else if (videoPopupCard && !videoPopupCard.classList.contains('hide-card')) {
-        handleCallAccept();
-        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
-      }
-      // 3. 복약 알림 팝업이 떠 있는 경우 -> 복약 완료 처리
-      else if (medPopupCard && !medPopupCard.classList.contains('hide-card')) {
+      // 3. 복약 알림 페이지인 경우
+      else if (activePageId === 'medication') {
         handleMedicationTaken();
         showToast('📱 [초록 버튼] 복약 완료 기록되었습니다!', '🟢');
       }
-      // 4. 열려 있는 커스텀 모달이 있는 경우 -> 닫기/확인
+      // 4. 영상통화 페이지인 경우
+      else if (activePageId === 'videocall') {
+        handleCallAccept();
+        showToast('📱 [초록 버튼] 영상통화를 수락했습니다!', '🟢');
+      }
+      // 5. 기타 화면
       else {
-        const openModalElem = document.querySelector('.custom-modal-overlay.open');
-        if (openModalElem) {
-          openModalElem.classList.remove('open');
-          showToast('📱 [초록 버튼] 확인 처리되었습니다.', '🟢');
-        } else if (currentHash === 'morning') {
-          handleMorningDialogClick();
-        } else if (currentHash === 'videocall') {
-          handleCallAccept();
-        } else if (currentHash === 'medication') {
-          handleMedicationTaken();
-        } else {
-          showToast('📱 [초록 버튼] 확인되었습니다.', '🟢');
-        }
+        showToast('📱 [초록 버튼] 확인되었습니다.', '🟢');
       }
       break;
 
@@ -752,9 +749,11 @@ function handleTvVoiceCommand(text) {
 
   // 🔴 빨강 계열 (X, 거절, 취소, 연기, 통화 종료)
   const redKeywords = [
-    '아니', '아니요', '아뇨', '아냐', '안먹', '안먹어', '안먹었', '안먹었어요', '안먹을래',
-    '나중에', '이따가', '이따', '싫어', '싫어요', '거절', '취소', '닫기', '닫아',
-    '끊어', '끊을래', '끊자', '통화종료', '종료', '그만', '아직'
+    '아니', '아니요', '아뇨', '아냐', '안해', '안할래',
+    '안먹', '안먹어', '안먹었', '안먹었어요', '안먹을래',
+    '나중에', '이따가', '이따', '싫어', '싫어요', '싫다',
+    '거절', '취소', '닫기', '닫아',
+    '끊어', '끊을래', '끊자', '통화종료', '종료', '그만', '아직', '안돼', '안된다'
   ];
   if (redKeywords.some(kw => lower.includes(kw))) {
     lastTvVoiceActionTime = now;
@@ -764,11 +763,21 @@ function handleTvVoiceCommand(text) {
 
   // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사) - 단일 모음 '어' 제외
   const greenKeywords = [
+    // 공통 긍정 및 수락 (어간 단위 확장: 알았다, 알겠습니다, 좋다, 그럼 등 모두 포함)
+    '네', '예', '응', '내', '넹', '옙', '어먹었어',
+    '그래', '그럼', '그려', '그라제',
+    '좋아', '좋아요', '좋다', '좋지', '좋네', '오냐',
+    '알았', '알았어', '알았어요', '알았다', '알았지', '알았네', '알겠', '알겠어', '알겠어요', '알겠습니다', '알겠다',
+    '확인', '완료', '수락', '동의', '받아', '받아라',
+    
+    // 복약 완료
     '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
-    '약먹었', '약먹었어요', '약먹었습니다', '네', '예', '응', '어먹었어', '그래',
-    '알았어', '알았어요', '알겠어', '알겠어요', '확인', '완료', '수락', '받아', '받아라',
-    '여보세요', '통화', '전화받아', '연결', '좋아', '좋아요', '오냐',
-    // 🌅 아침 인사 응답 (잘 잤어 관련 다양한 구어체/어간/자연어 대폭 보강)
+    '약먹었', '약먹었어요', '약먹었습니다',
+    
+    // 통화 연결
+    '여보세요', '통화', '전화받아', '연결',
+    
+    // 🌅 아침 인사 응답
     '잘잤', '잘자', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어',
     '좋은아침', '안녕', '반가워'
   ];

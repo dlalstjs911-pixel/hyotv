@@ -189,48 +189,6 @@
     #remote-toast.show {
       opacity: 1;
     }
-
-    /* 🎙️ 실시간 음성 자막 피드백 카드 */
-    .voice-feedback-card {
-      background: rgba(15, 23, 42, 0.9);
-      border: 2px solid rgba(255, 204, 0, 0.3);
-      border-radius: 16px;
-      padding: 10px 14px;
-      margin-bottom: 12px;
-      text-align: center;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    .voice-feedback-card.active {
-      border-color: #ffcc00;
-      background: rgba(30, 27, 75, 0.95);
-      box-shadow: 0 0 20px rgba(255, 204, 0, 0.6);
-      transform: scale(1.02);
-    }
-
-    .voice-status-line {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #94a3b8;
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .voice-feedback-card.active .voice-status-line {
-      color: #facc15;
-    }
-
-    .voice-transcript-line {
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: #ffffff;
-      min-height: 26px;
-      word-break: keep-all;
-    }
   </style>
 </head>
 
@@ -244,16 +202,6 @@
         <span id="connection-status">TV 화면 연동됨</span>
       </div>
     </header>
-
-    <!-- 🎙️ 실시간 음성 피드백 HUD (인식된 말소리 자막 상시 표시) -->
-    <div id="voice-hud-card" class="voice-feedback-card">
-      <div id="voice-hud-status" class="voice-status-line">
-        <span>🎙️ 대기 중</span>
-      </div>
-      <div id="voice-hud-text" class="voice-transcript-line">
-        [말하기]를 누르거나 TV 알림 시 말씀하세요
-      </div>
-    </div>
 
     <!-- 🟢🔴🟡⚪ 메인 4종 대형 리모컨 버튼 (O, X, 🎙️ 말하기, 🚨 119) -->
     <div class="hero-buttons-container">
@@ -282,7 +230,7 @@
   <div id="remote-toast">신호가 TV로 전송되었습니다!</div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="js/remote.js?v=20260909_instant_ox_v2"></script>
+  <script src="js/remote.js?v=20260909_clean_v3"></script>
 </body>
 
 </html>

@@ -157,29 +157,9 @@ let isListening = false;
 let listenTimeout = null;
 let commandHandled = false;
 
+// voice HUD 카드는 UI 단순화를 위해 제거되었으므로 빈 함수로 유지합니다.
 function updateVoiceHUD(status, mainText) {
-  const card = document.getElementById('voice-hud-card');
-  const statusEl = document.getElementById('voice-hud-status');
-  const textEl = document.getElementById('voice-hud-text');
-  if (!card || !statusEl || !textEl) return;
-
-  if (status === 'listening') {
-    card.classList.add('active');
-    statusEl.innerHTML = '<span>🔴 귀 기울여 듣는 중... 말씀하세요!</span>';
-    textEl.innerText = mainText || '듣고 있습니다...';
-  } else if (status === 'success') {
-    card.classList.add('active');
-    statusEl.innerHTML = '<span>🟢 음성 명령 인식 완료!</span>';
-    textEl.innerText = mainText;
-  } else if (status === 'error') {
-    card.classList.remove('active');
-    statusEl.innerHTML = '<span>⚠️ 마이크 알림</span>';
-    textEl.innerText = mainText;
-  } else {
-    card.classList.remove('active');
-    statusEl.innerHTML = '<span>🎙️ 대기 중</span>';
-    textEl.innerText = mainText || '[말하기]를 누르거나 TV 알림 시 말씀하세요';
-  }
+  // no-op
 }
 
 function updateMicButtonUI(status) {

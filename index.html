@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>효TV - 통합 TV 서비스 소개</title>
   <link rel="stylesheet" href="css/style.css">
+  <!-- ⚡ Supabase 공식 실시간 클라이언트 SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <!-- 상단 통합 TV 네비게이션바 -->
@@ -13,9 +15,17 @@
     <button class="tv-nav-item" data-target="morning">아침 인사</button>
     <button class="tv-nav-item" data-target="medication">복약 알림</button>
     <button class="tv-nav-item" data-target="videocall">영상통화 수신</button>
-    <a href="remote.html" target="_blank" class="tv-nav-remote-btn" style="margin-left: auto; text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-radius: 20px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 10px rgba(37,99,235,0.4);">
-      📱 스마트폰 리모컨 창 열기
-    </a>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <!-- ⚡ Supabase 클라우드 실시간 연동 상태 뱃지 -->
+      <div id="supabase-status-badge" style="font-size: 0.8rem; font-weight: 700; color: #22c55e; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 5px;">
+        <span>⚡ Supabase 연동됨</span>
+      </div>
+
+      <a href="remote.html" target="_blank" class="tv-nav-remote-btn" style="text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-radius: 20px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 2px 10px rgba(37,99,235,0.4);">
+        📱 스마트폰 리모컨 창 열기
+      </a>
+    </div>
   </nav>
 
   <!-- 실시간 알림 토스트 (Toast Message) -->
@@ -382,5 +392,6 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="js/main.js?v=20260909_no_echo_v2"></script>
+  <script src="js/supabase.js?v=20260909_v1"></script>
 </body>
 </html>

@@ -224,6 +224,11 @@ function handleMedicationTaken() {
   
   openModal('modal-med-done');
 
+  // ⚡ Supabase DB로 복약 완료 상태 실시간 전송
+  if (typeof updateSupabaseStatusTaken === 'function') {
+    updateSupabaseStatusTaken();
+  }
+
   clearTimeout(medDoneAutoCloseTimer);
   medDoneAutoCloseTimer = setTimeout(() => {
     closeModal('modal-med-done');

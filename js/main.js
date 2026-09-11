@@ -141,30 +141,23 @@ function triggerMedicationNotice() {
   }, 3000);
 }
 
-// --- 영상통화 수신: 3초 일일 드라마 시청 후 영상통화 수신 팝업 전환 ---
+// --- 영상통화 시청 화면 준비 (웹앱 호출 대기 상태 유지) ---
 function triggerVideoCallNotice() {
+  clearTimeout(videoCallTimer);
+  videoCallTimer = null;
+
   const popupCard = document.getElementById('videocall-popup-card');
   const countdownBadge = document.getElementById('videocall-countdown-badge');
 
-  if (!popupCard) return;
-
-  popupCard.classList.add('hide-card');
+  if (popupCard) {
+    popupCard.classList.add('hide-card');
+  }
   if (countdownBadge) {
-    countdownBadge.innerText = '📺 일일 드라마 시청 중... (3초 후 영상통화 수신 전환)';
+    countdownBadge.innerText = '📺 SBS 일일드라마 시청 중 (자녀 통화 수신 대기)';
     countdownBadge.style.opacity = '1';
   }
 
-  showToast('📺 SBS 일일 드라마를 시청하고 있습니다. (3초 후 영상통화 전환)', '📺');
-
-  clearTimeout(videoCallTimer);
-  videoCallTimer = setTimeout(() => {
-    popupCard.classList.remove('hide-card');
-    if (countdownBadge) {
-      countdownBadge.style.opacity = '0';
-    }
-    showToast('📞 [영상통화 수신] 딸 지영이에게 걸려온 영상통화입니다!', '📞');
-    sendPopupOpenedSignal('videocall');
-  }, 3000);
+  showToast('📺 SBS 일일 드라마를 시청하고 있습니다.', '📺');
 }
 
 // --- 한국어 여성 음성 합성 (TTS) 기능: 아침 인사 (중년 딸 목소리) ---
@@ -296,6 +289,35 @@ function clearConversationSequence() {
   if (daughterBox) daughterBox.classList.remove('speaking');
 }
 
+// --- ⚡ [Supabase Realtime] 전역 통화 수신 [수락] 및 [거절] 핸들러 ---
+function handleGlobalCallAccept() {
+  closeModal('modal-incoming-call-global');
+
+  // Supabase call_logs 테이블 status -> 'accepted' 동기화
+  if (typeof updateCallLogStatus === 'function') {
+    updateCallLogStatus(null, 'accepted');
+  }
+
+  // 기존 5:5 라이브 영상통화 시퀀스 오픈
+  handleCallAccept();
+}
+
+function handleGlobalCallDecline() {
+  closeModal('modal-incoming-call-global');
+
+  // Supabase call_logs 테이블 status -> 'rejected' 동기화
+  if (typeof updateCallLogStatus === 'function') {
+    updateCallLogStatus(null, 'rejected');
+  }
+
+  sendCallSignal('CALL_ENDED');
+  showToast('통화 요청을 거절하였습니다.', '📞');
+}
+
+function closeGlobalIncomingCallModal() {
+  closeModal('modal-incoming-call-global');
+}
+
 // --- 영상통화 수신 [수락] 버튼: 엄마와 딸의 자연스러운 대화 영상 시퀀스 실행 ---
 function handleCallAccept() {
   // 1. 남아있는 영상통화 수신 예약 타이머 즉시 취소 (팝업 재오픈 원천 차단!)
@@ -423,6 +445,11 @@ function handleCallDecline() {
 function endCall() {
   clearTimeout(videoCallTimer);
   videoCallTimer = null;
+
+  // Supabase call_logs 상태 -> 'ended' 동기화
+  if (typeof updateCallLogStatus === 'function') {
+    updateCallLogStatus(null, 'ended');
+  }
 
   closeModal('modal-videocall-active');
   const popupCard = document.getElementById('videocall-popup-card');
@@ -602,6 +629,10 @@ function handleRemoteAction(action) {
   const medPopupCard = document.getElementById('medication-popup-card');
   const morningWindow = document.getElementById('morning-dialog-window');
   
+  // ⚡ 전역 통화 수신 모달 열림 여부 확인
+  const incomingGlobalModal = document.getElementById('modal-incoming-call-global');
+  const isIncomingGlobalOpen = incomingGlobalModal && incomingGlobalModal.classList.contains('open');
+
   // 현재 활성화된 화면 식별
   const activePageEl = document.querySelector('.tv-page.active');
   const activePageId = activePageEl ? activePageEl.id.replace('page-', '') : (window.location.hash.replace('#', '') || 'overview');
@@ -609,12 +640,18 @@ function handleRemoteAction(action) {
   // ⭐️ 핵심: 영상통화 모달(modal-videocall-active)은 '일반 알림 확인 모달'이 아니므로,
   // 초록 버튼(확인/수락/대화)으로 닫히면 안 됨! 오직 통화 종료(빨강 버튼)로만 닫혀야 함!
   const isCallActive = activeCallModal && activeCallModal.classList.contains('open');
-  const openModalElem = document.querySelector('.custom-modal-overlay.open:not(#modal-videocall-active)');
+  const openModalElem = document.querySelector('.custom-modal-overlay.open:not(#modal-videocall-active):not(#modal-incoming-call-global)');
 
   switch (action) {
     // 🟢 초록 버튼: 확인 / 수락 / 먹었어 / 잘 잤어
     case 'BTN_GREEN':
-      // 0. 영상통화가 이미 연결되어 통화 중인 경우 -> 통화 중 대화("응", "그래", "알았어" 등)이므로 화면을 닫지 않고 유지
+      // 0-1. ⚡ 전역 통화 수신 모달이 떠 있는 경우 -> 즉시 통화 수락!
+      if (isIncomingGlobalOpen) {
+        handleGlobalCallAccept();
+        return;
+      }
+
+      // 0-2. 영상통화가 이미 연결되어 통화 중인 경우 -> 통화 중 대화("응", "그래", "알았어" 등)이므로 화면을 닫지 않고 유지
       if (isCallActive) {
         return;
       }
@@ -653,6 +690,12 @@ function handleRemoteAction(action) {
 
     // 🔴 빨강 버튼: 거절 / 나중에 / 통화 종료 / 닫기
     case 'BTN_RED':
+      // 0-1. ⚡ 전역 통화 수신 모달이 떠 있는 경우 -> 즉시 통화 거절!
+      if (isIncomingGlobalOpen) {
+        handleGlobalCallDecline();
+        return;
+      }
+
       // 1. 영상통화 진행 중인 라이브 모달이 열려 있는 경우 -> 통화 종료
       if (activeCallModal && activeCallModal.classList.contains('open')) {
         endCall();

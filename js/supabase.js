@@ -127,10 +127,14 @@ function applyDataToHyoTvUI(item) {
 }
 
 // 4. 실시간(Realtime) 변경 사항 구독 (자녀 웹앱에서 등록 시 0.1초 만에 반응)
+let currentIncomingCallId = null;
+
+// 4. 실시간(Realtime) 변경 사항 구독 (복약 알림 + call_logs 실시간 통화 수신 감지)
 function subscribeToRealtimeUpdates() {
   if (!supabaseClient) return;
 
   try {
+    // 1) 전체 DB 변경 구독 채널
     supabaseClient
       .channel('hyotv-realtime-channel')
       .on(
@@ -141,8 +145,17 @@ function subscribeToRealtimeUpdates() {
 
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newItem = payload.new;
-            applyDataToHyoTvUI(newItem);
-            showToast('⚡ 자녀 웹앱에서 실시간 알림이 도착했습니다!', '🔔');
+            if (!newItem) return;
+
+            // 통화 로그(call_logs) 테이블 변경 감지
+            if (payload.table === 'call_logs' || ('call_type' in newItem && 'target' in newItem)) {
+              handleCallLogChange(newItem);
+            } 
+            // 복약 알림(medications) 테이블 변경 감지
+            else if (payload.table === 'medications' || ('cycle_type' in newItem || 'times' in newItem)) {
+              applyDataToHyoTvUI(newItem);
+              showToast('⚡ 자녀 웹앱에서 실시간 알림이 도착했습니다!', '🔔');
+            }
           }
         }
       )
@@ -154,9 +167,90 @@ function subscribeToRealtimeUpdates() {
           setSupabaseStatus(false);
         }
       });
+
+    // 2) call_logs 테이블 전용 명시적 구독 채널 (이중 안전장치)
+    supabaseClient
+      .channel('hyotv-calls-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'call_logs' },
+        (payload) => {
+          console.log('[Supabase Realtime Calls] 통화 테이블 변경 감지:', payload);
+          if (payload.new) {
+            handleCallLogChange(payload.new);
+          }
+        }
+      )
+      .subscribe();
   } catch (err) {
     console.warn('[Supabase Realtime] 구독 설정 경고:', err);
     setSupabaseStatus(false);
+  }
+}
+
+// 실시간 통화 수신 처리기 (웹앱에서 [전화 통화] 또는 [영상 통화] 클릭 시 팝업 오픈)
+function handleCallLogChange(callData) {
+  if (!callData) return;
+  console.log('[Call Handler] 웹앱 통화 신호 수신:', callData.id, callData.call_type, callData.status);
+
+  // status가 'calling'이거나, 신규 통화 요청(status가 rejected/ended가 아님)
+  const isCalling = callData.status === 'calling' || (!callData.status && callData.call_type);
+  if (isCalling) {
+    handleIncomingCallSignal(callData);
+  } else if (callData.status === 'rejected' || callData.status === 'ended') {
+    if (typeof closeGlobalIncomingCallModal === 'function') {
+      closeGlobalIncomingCallModal();
+    }
+  }
+}
+
+function handleIncomingCallSignal(callData) {
+  currentIncomingCallId = callData.id || null;
+  const callerName = callData.target || callData.caller || callData.sender || '딸 지영';
+  const isVoice = callData.call_type === 'voice';
+  const callTypeName = isVoice ? '전화(음성) 통화' : '영상 통화';
+
+  // 1. 발신자 정보 UI 반영
+  const nameEl = document.getElementById('incoming-caller-name');
+  const typeEl = document.getElementById('incoming-call-type-text');
+  if (nameEl) nameEl.innerText = callerName;
+  if (typeEl) typeEl.innerText = `${callTypeName} 요청 중...`;
+
+  // 2. 최상단 전역 통화 수신 모달 오픈
+  if (typeof openModal === 'function') {
+    openModal('modal-incoming-call-global');
+  }
+
+  // 3. 토스트 및 딸 목소리 TTS 음성 안내
+  showToast(`📞 [${callTypeName}] ${callerName}에게서 전화가 걸려왔습니다!`, '📞');
+  if (typeof speakText === 'function') {
+    speakText(`엄마, ${callerName}에게 ${callTypeName}가 왔어요. 통화를 수락하시겠어요?`, 0.95, 'daughter');
+  }
+
+  // 4. 가상 리모컨으로 수신 팝업 오픈 신호 전달 (리모컨 진동 + 마이크 On)
+  if (typeof sendPopupOpenedSignal === 'function') {
+    sendPopupOpenedSignal('incoming_call');
+  }
+}
+
+// call_logs 행의 status 업데이트 (accepted, rejected, ended)
+async function updateCallLogStatus(callId, newStatus) {
+  const targetId = callId || currentIncomingCallId;
+  if (!supabaseClient || !targetId) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('call_logs')
+      .update({ status: newStatus })
+      .eq('id', targetId);
+
+    if (error) {
+      console.warn(`[Supabase] call_logs (id: ${targetId}) status=${newStatus} 업데이트 에러:`, error);
+    } else {
+      console.log(`[Supabase] call_logs (id: ${targetId}) status -> '${newStatus}' 업데이트 완료 ⚡`);
+    }
+  } catch (err) {
+    console.warn('[Supabase] updateCallLogStatus 예외:', err);
   }
 }
 

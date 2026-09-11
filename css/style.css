@@ -1504,3 +1504,146 @@ body, html {
   50% { opacity: 0.4; transform: scale(0.85); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+/* ----------------------------------------------------
+   ⚡ Supabase Realtime 전역 통화 수신 팝업창 (Global Call Incoming Modal)
+---------------------------------------------------- */
+#modal-incoming-call-global {
+  z-index: 10000;
+  background: rgba(10, 15, 29, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.incoming-call-global-card {
+  width: 960px;
+  background: rgba(26, 31, 46, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 40px;
+  padding: 60px 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9), 0 0 80px rgba(34, 197, 94, 0.2);
+  animation: incomingCardPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+@keyframes incomingCardPop {
+  from { opacity: 0; transform: scale(0.88) translateY(30px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.incoming-avatar-wrapper {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin-bottom: 28px;
+}
+
+.incoming-avatar-ring {
+  position: absolute;
+  top: -15px;
+  left: -15px;
+  right: -15px;
+  bottom: -15px;
+  border-radius: 50%;
+  border: 3px solid #22c55e;
+  animation: callerPulseRing 2s infinite ease-out;
+}
+
+@keyframes callerPulseRing {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+.incoming-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 5px solid #22c55e;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.incoming-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  color: #4ade80;
+  padding: 8px 20px;
+  border-radius: 30px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.incoming-badge-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  animation: pulseDot 1s infinite;
+}
+
+.incoming-caller-title {
+  font-size: 48px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -1px;
+  margin: 0 0 12px 0;
+}
+
+.incoming-call-subtitle {
+  font-size: 24px;
+  color: #94a3b8;
+  margin: 0 0 44px 0;
+}
+
+.incoming-action-buttons {
+  display: flex;
+  gap: 28px;
+  width: 100%;
+  max-width: 600px;
+  justify-content: center;
+}
+
+.incoming-btn {
+  flex: 1;
+  height: 90px;
+  border-radius: 30px;
+  border: none;
+  font-size: 32px;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.incoming-btn.accept {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 12px 35px rgba(34, 197, 94, 0.45);
+}
+
+.incoming-btn.accept:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 18px 45px rgba(34, 197, 94, 0.6);
+}
+
+.incoming-btn.decline {
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  box-shadow: 0 12px 35px rgba(244, 63, 94, 0.45);
+}
+
+.incoming-btn.decline:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 18px 45px rgba(244, 63, 94, 0.6);
+}

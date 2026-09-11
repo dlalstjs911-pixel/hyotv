@@ -265,15 +265,19 @@ function handleCallLogChange(callData) {
 
 function handleIncomingCallSignal(callData) {
   currentIncomingCallId = callData.id || null;
-  const callerName = callData.target || callData.caller || callData.sender || '딸 지영';
   const isVoice = callData.call_type === 'voice';
+  window.currentIncomingCallType = isVoice ? 'voice' : 'video';
   const callTypeName = isVoice ? '전화(음성) 통화' : '영상 통화';
 
-  // 1. 발신자 정보 UI 반영
+  // 1. 발신자 정보 및 모달 UI 리셋
   const nameEl = document.getElementById('incoming-caller-name');
   const typeEl = document.getElementById('incoming-call-type-text');
-  if (nameEl) nameEl.innerText = callerName;
+  if (nameEl) nameEl.innerText = '';
   if (typeEl) typeEl.innerText = `${callTypeName} 요청 중...`;
+
+  if (typeof resetIncomingModalUI === 'function') {
+    resetIncomingModalUI();
+  }
 
   // 2. 최상단 전역 통화 수신 모달 오픈
   if (typeof openModal === 'function') {
@@ -281,9 +285,10 @@ function handleIncomingCallSignal(callData) {
   }
 
   // 3. 토스트 및 딸 목소리 TTS 음성 안내
-  showToast(`📞 [${callTypeName}] ${callerName}에게서 전화가 걸려왔습니다!`, '📞');
+  showToast(`📞 [${callTypeName}] 전화가 걸려왔습니다!`, '📞');
   if (typeof speakText === 'function') {
-    speakText(`엄마, ${callerName}에게 ${callTypeName}가 왔어요. 통화를 수락하시겠어요?`, 0.95, 'daughter');
+    const speechMsg = isVoice ? '엄마, 전화가 왔어요. 통화를 수락하시겠어요?' : '엄마, 영상 통화가 왔어요. 통화를 수락하시겠어요?';
+    speakText(speechMsg, 0.95, 'daughter');
   }
 
   // 4. 가상 리모컨으로 수신 팝업 오픈 신호 전달 (리모컨 진동 + 마이크 On)

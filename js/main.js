@@ -329,8 +329,23 @@ function clearConversationSequence() {
 }
 
 // --- ⚡ [Supabase Realtime] 전역 통화 수신 [수락] 및 [거절] 핸들러 ---
+let isVoiceCallActiveInModal = false;
+
+function resetIncomingModalUI() {
+  const reqBtns = document.getElementById('incoming-action-buttons');
+  const activeBox = document.getElementById('incoming-voice-active-box');
+  const typeEl = document.getElementById('incoming-call-type-text');
+  if (reqBtns) reqBtns.style.display = 'flex';
+  if (activeBox) activeBox.style.display = 'none';
+  if (typeEl) {
+    const isVoice = (window.currentIncomingCallType === 'voice');
+    typeEl.innerText = isVoice ? '전화(음성) 통화 요청 중...' : '영상 통화 요청 중...';
+  }
+  isVoiceCallActiveInModal = false;
+}
+
 function handleGlobalCallAccept() {
-  closeModal('modal-incoming-call-global');
+  const isVoice = (window.currentIncomingCallType === 'voice');
 
   // Supabase call_logs 테이블 status -> 'accepted' 동기화
   if (typeof updateCallLogStatus === 'function') {
@@ -341,13 +356,61 @@ function handleGlobalCallAccept() {
   if (typeof logUserActionToSupabase === 'function') {
     logUserActionToSupabase('call_accepted', {
       call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
-      target: '우리 딸 지영',
-      call_type: 'video'
+      target: '우리 딸',
+      call_type: isVoice ? 'voice' : 'video'
     });
   }
 
-  // 기존 5:5 라이브 영상통화 시퀀스 오픈
-  handleCallAccept();
+  if (isVoice) {
+    // 📞 음성 통화: 팝업을 닫지 않고, [수락/거절] 버튼을 숨긴 채 '전화(음성) 통화 중...' + 자녀 사진 화면으로 전환
+    const reqBtns = document.getElementById('incoming-action-buttons');
+    const activeBox = document.getElementById('incoming-voice-active-box');
+    const typeEl = document.getElementById('incoming-call-type-text');
+
+    if (reqBtns) reqBtns.style.display = 'none';
+    if (activeBox) activeBox.style.display = 'flex';
+    if (typeEl) typeEl.innerText = '전화(음성) 통화 중...';
+    isVoiceCallActiveInModal = true;
+
+    showToast('📞 [음성 통화] 통화가 연결되었습니다.', '📞');
+
+    // 딸 음성 인사 재생
+    if (typeof speakText === 'function') {
+      setTimeout(() => {
+        speakText('엄마, 목소리 잘 들려요? 오늘 밥은 맛있게 드셨어요?', 0.95, 'daughter');
+      }, 500);
+    }
+  } else {
+    // 📹 영상 통화: 팝업 닫고 5:5 라이브 대화면 영상통화 시퀀스 오픈
+    closeModal('modal-incoming-call-global');
+    handleCallAccept();
+  }
+}
+
+// 📞 음성통화 종료 (팝업 내 종료 버튼 또는 리모컨 빨간 버튼)
+function endVoiceCallInModal() {
+  closeModal('modal-incoming-call-global');
+  resetIncomingModalUI();
+
+  // Supabase call_logs 상태 -> 'ended' 업데이트
+  if (typeof updateCallLogStatus === 'function') {
+    updateCallLogStatus(null, 'ended');
+  }
+
+  // ⚡ Supabase user_logs에 통화 종료 시각 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('call_ended', {
+      call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
+      target: '우리 딸',
+      call_type: 'voice'
+    });
+  }
+
+  if (typeof sendCallSignal === 'function') {
+    sendCallSignal('CALL_ENDED');
+  }
+
+  showToast('📞 음성 통화가 종료되었습니다.', '📞');
 }
 
 function handleGlobalCallDecline() {
@@ -362,8 +425,8 @@ function handleGlobalCallDecline() {
   if (typeof logUserActionToSupabase === 'function') {
     logUserActionToSupabase('call_rejected', {
       call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
-      target: '우리 딸 지영',
-      call_type: 'video'
+      target: '우리 딸',
+      call_type: window.currentIncomingCallType || 'voice'
     });
   }
 
@@ -761,9 +824,14 @@ function handleRemoteAction(action) {
 
     // 🔴 빨강 버튼: 거절 / 나중에 / 통화 종료 / 닫기
     case 'BTN_RED':
-      // 0-1. ⚡ 전역 통화 수신 모달이 떠 있는 경우 -> 즉시 통화 거절!
+      // 0-1. ⚡ 전역 통화 수신 모달이 떠 있는 경우
       if (isIncomingGlobalOpen) {
-        handleGlobalCallDecline();
+        if (typeof isVoiceCallActiveInModal !== 'undefined' && isVoiceCallActiveInModal) {
+          endVoiceCallInModal();
+          showToast('📱 [빨강 버튼] 음성통화를 종료했습니다.', '🔴');
+        } else {
+          handleGlobalCallDecline();
+        }
         return;
       }
 

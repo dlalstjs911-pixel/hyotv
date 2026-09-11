@@ -49,16 +49,68 @@ function closeMorningDialogOnly() {
   }
 }
 
+// --- 🔊 브라우저 오디오 & 음성 엔진(TTS) 강제 언락 시스템 ---
+let isAudioContextUnlocked = false;
+let globalAudioCtx = null;
+
+function unlockAudioSystem() {
+  if (isAudioContextUnlocked) return;
+
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      if (!globalAudioCtx) {
+        globalAudioCtx = new AudioContext();
+      }
+      if (globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+      // 0.01초 무음 오실레이터를 재생하여 브라우저 오디오 하드웨어 채널 활성화
+      const osc = globalAudioCtx.createOscillator();
+      const gain = globalAudioCtx.createGain();
+      gain.gain.value = 0.001; // 거의 무음
+      osc.connect(gain);
+      gain.connect(globalAudioCtx.destination);
+      osc.start(0);
+      osc.stop(globalAudioCtx.currentTime + 0.02);
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.resume();
+      // 빈 더미 utterance로 TTS 엔진 웜업
+      const dummy = new SpeechSynthesisUtterance('');
+      dummy.volume = 0;
+      dummy.lang = 'ko-KR';
+      window.speechSynthesis.speak(dummy);
+    }
+
+    isAudioContextUnlocked = true;
+    console.log('[TV Audio] 🔊 브라우저 오디오 엔진 및 TTS가 성공적으로 언락되었습니다.');
+  } catch (err) {
+    console.warn('[TV Audio] 오디오 언락 시도 중 알림:', err);
+  }
+}
+
+// 사용자가 TV 화면 어디든 한 번이라도 클릭/터치/키보드 입력 시 즉시 오디오 완전 언락
+['click', 'touchstart', 'keydown', 'mousedown'].forEach(evtType => {
+  window.addEventListener(evtType, () => {
+    unlockAudioSystem();
+  }, { once: false, passive: true });
+});
+
 let isTtsSpeaking = false;
 let lastTtsEndTime = 0;
-let activeUtterances = []; // ⭐️ 크롬/사파리 GC(가비지 컬렉션)에 의한 발화 중단 및 이벤트 누락 방지 전역 앵커
+let activeUtterances = []; // ⭐️ 크롬/사파리 GC(가비지 컬렉션)에 의한 발화 중단 방지 전역 참조 앵커
 
-// --- 한국어 음성 발화 공통 함수 (딸: 30-40대 중년 여성, 엄마: 70대 여성 어르신 톤) ---
+// --- 한국어 음성 발화 공통 함수 (딸: 다정하고 밝은 딸 톤, 엄마: 온화한 어르신 톤) ---
 function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd = null) {
   if (!text) {
     if (onEnd) onEnd();
     return;
   }
+
+  // 발화 전 오디오 언락 시도
+  unlockAudioSystem();
 
   let hasFinished = false;
   let fallbackTimer = null;
@@ -69,35 +121,33 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
     if (fallbackTimer) clearTimeout(fallbackTimer);
     isTtsSpeaking = false;
     lastTtsEndTime = Date.now();
-    activeUtterances = []; // 발화 완료 후 참조 해제
+    activeUtterances = [];
     if (onEnd) onEnd();
   };
 
-  // ⭐️ 텍스트 길이에 기반한 안전 완료 시간 (TTS가 묵음이거나 차단되어도 대화가 100% 다음으로 진행!)
-  const safeTimeoutMs = Math.max(2000, (text.length * 240) + 1200);
+  // ⭐️ 텍스트 길이에 기반한 안전 타임아웃
+  const safeTimeoutMs = Math.max(1800, (text.length * 200) + 800);
   fallbackTimer = setTimeout(() => {
-    console.warn('[TV TTS] 발화 대기 시간 초과(Fallback 진행):', text);
     finishSpeech();
   }, safeTimeoutMs);
 
   if (!('speechSynthesis' in window)) {
     if (onStart) onStart();
+    finishSpeech();
     return;
   }
 
   try {
-    window.speechSynthesis.cancel();
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
   } catch (e) {}
 
-  // cancel() 직후 충돌 방지를 위해 30ms 안전 지연 후 speak 실행
   setTimeout(() => {
     try {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ko-KR';
-      activeUtterances.push(utterance); // ⭐️ GC 수집 방지 전역 등록!
+      activeUtterances.push(utterance);
 
       utterance.onstart = () => {
         isTtsSpeaking = true;
@@ -109,35 +159,28 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
         finishSpeech();
       };
       utterance.onerror = (err) => {
-        console.warn('[TV TTS] 발화 오류 또는 취소 감지:', err);
+        console.warn('[TV TTS] 발화 이벤트 상태:', err);
         finishSpeech();
       };
 
       if (role === 'mother') {
-        utterance.rate = 0.85;
+        utterance.rate = 0.88;
         utterance.pitch = 0.75;
       } else {
-        utterance.rate = 0.92;
-        utterance.pitch = pitch || 0.95;
+        utterance.rate = 0.94;
+        utterance.pitch = pitch || 1.05;
       }
 
+      // 음성 엔진 선택: 안전한 한국어 음성만 사용 (문제가 있는 macOS 시스템 특정 음성 강제 지정 금지)
       const voices = window.speechSynthesis.getVoices();
-      const koreanVoices = voices.filter(v => v.lang.includes('ko') || v.lang.includes('KO'));
+      const koreanVoices = voices.filter(v => v.lang && (v.lang.includes('ko') || v.lang.includes('KO')));
       
       if (koreanVoices.length > 0) {
-        let selectedVoice = koreanVoices[0];
-        if (role === 'mother') {
-          selectedVoice = koreanVoices.find(v => v.localService && !v.name.includes('Google')) ||
-                          koreanVoices.find(v => !v.name.includes('Google')) ||
-                          koreanVoices[koreanVoices.length - 1];
-        } else {
-          selectedVoice = koreanVoices.find(v => 
-            v.name.toLowerCase().includes('yuna') || 
-            v.name.toLowerCase().includes('sun-hi') || 
-            v.name.toLowerCase().includes('female')
-          ) || koreanVoices[0];
+        // 크롬 내장 Google 한국어 또는 기본 ko-KR 음성 우선
+        let selectedVoice = koreanVoices.find(v => v.name.includes('Google') || v.default) || koreanVoices[0];
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
         }
-        if (selectedVoice) utterance.voice = selectedVoice;
       }
 
       if (window.speechSynthesis.paused) {
@@ -145,7 +188,7 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
       }
       window.speechSynthesis.speak(utterance);
 
-      // 크롬 백그라운드 탭 멈춤 버그 방지용 주기적 resume 핑
+      // 크롬 백그라운드 탭 멈춤 버그 방지 핑
       const resumePing = setInterval(() => {
         if (hasFinished || !isTtsSpeaking) {
           clearInterval(resumePing);
@@ -160,7 +203,7 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
       console.warn('[TV TTS] speak 실행 예외:', err);
       finishSpeech();
     }
-  }, 30);
+  }, 20);
 }
 
 let currentMedicationNoticeText = "엄마 약 먹을 시간이야";
@@ -434,10 +477,8 @@ function handleGlobalCallAccept() {
   // 통화 시작 전 이전 잔여 타이머 및 발화 정리
   clearConversationSequence();
 
-  // 브라우저 오디오/TTS 언락
-  if (window.speechSynthesis && window.speechSynthesis.paused) {
-    try { window.speechSynthesis.resume(); } catch (e) {}
-  }
+  // 브라우저 오디오/TTS 언락 강제 활성화
+  unlockAudioSystem();
 
   // Supabase call_logs 테이블 status -> 'accepted' 동기화
   if (typeof updateCallLogStatus === 'function') {
@@ -492,7 +533,7 @@ function handleGlobalCallAccept() {
   }
 }
 
-// 📞 음성통화 연속 대화 시퀀스
+// 📞 음성통화 연속 대화 시퀀스 (자막 100% 보장 + 음성 동기화)
 function startVoiceCallConversation() {
   isVoiceCallActiveInModal = true;
 
@@ -505,8 +546,10 @@ function startVoiceCallConversation() {
   }
 
   function playVoiceStep(index) {
-    if (!isVoiceCallActiveInModal || index >= VOICE_CALL_DIALOGS.length) {
-      // 모든 대화 완료 후에도 마지막 대화 내용이 사라지지 않고 유지!
+    if (!isVoiceCallActiveInModal) return;
+
+    if (index >= VOICE_CALL_DIALOGS.length) {
+      // ⭐️ 핵심: 모든 대화가 끝나도 마지막 따뜻한 대화가 화면에 온전히 유지됨!
       return;
     }
 
@@ -522,20 +565,24 @@ function startVoiceCallConversation() {
       }
     }
 
-    speakText(item.text, item.pitch, item.role, null, () => {
+    // 1) 🔊 스피커로 실제 음성 송출
+    speakText(item.text, item.pitch, item.role);
+
+    // 2) ⏱️ 자막 체류 시간 계산 (한국어 읽기 속도: 글자당 110ms + 기본 여유 1800ms, 약 3.5초~4.5초)
+    const displayDurationMs = Math.max(2800, (item.text.length * 110) + 1800);
+
+    const stepTimer = setTimeout(() => {
       if (!isVoiceCallActiveInModal) return;
-      // 다음 대화까지 0.6초 자연스러운 호흡 후 다음 대사 진행
-      const timer = setTimeout(() => {
-        playVoiceStep(index + 1);
-      }, 600);
-      conversationTimeouts.push(timer);
-    });
+      playVoiceStep(index + 1);
+    }, displayDurationMs);
+
+    conversationTimeouts.push(stepTimer);
   }
 
-  // 0.4초 후 첫 대화 시작
+  // 0.3초 후 첫 대화 시작
   const initialTimer = setTimeout(() => {
     playVoiceStep(0);
-  }, 400);
+  }, 300);
   conversationTimeouts.push(initialTimer);
 }
 
@@ -596,10 +643,8 @@ function handleCallAccept() {
   // 이전 대화 타이머 및 음성 큐 정리
   clearConversationSequence();
 
-  // 브라우저 오디오 언락
-  if (window.speechSynthesis && window.speechSynthesis.paused) {
-    try { window.speechSynthesis.resume(); } catch (e) {}
-  }
+  // 브라우저 오디오 언락 강제 활성화
+  unlockAudioSystem();
 
   // 1. 남아있는 영상통화 수신 예약 타이머 즉시 취소 (팝업 재오픈 원천 차단!)
   clearTimeout(videoCallTimer);
@@ -673,25 +718,24 @@ function startMotherDaughterConversation() {
       if (daughterBox) daughterBox.classList.remove('speaking');
     }
 
-    speakText(item.text, item.pitch, item.role, null, () => {
+    // 1) 🔊 스피커로 실제 음성 송출
+    speakText(item.text, item.pitch, item.role);
+
+    // 2) ⏱️ 자막 체류 시간 계산 (한국어 읽기 속도: 글자당 110ms + 기본 여유 1800ms)
+    const displayDurationMs = Math.max(2800, (item.text.length * 110) + 1800);
+
+    const stepTimer = setTimeout(() => {
       if (!activeModal || !activeModal.classList.contains('open')) return;
+      playStep(index + 1);
+    }, displayDurationMs);
 
-      // 발화자 말하는 모션 끄기 (말풍선 자막은 그대로 유지!)
-      if (item.speaker === 'daughter' && daughterBox) daughterBox.classList.remove('speaking');
-      if (item.speaker === 'mother' && motherBox) motherBox.classList.remove('speaking');
-
-      // 0.45초 후 자연스럽게 다음 상대방 대사 시작
-      const nextTimer = setTimeout(() => {
-        playStep(index + 1);
-      }, 450);
-      conversationTimeouts.push(nextTimer);
-    });
+    conversationTimeouts.push(stepTimer);
   }
 
-  // 통화 연결 0.4초 후 첫 대화 시작
+  // 통화 연결 0.3초 후 첫 대화 시작
   const initialTimer = setTimeout(() => {
     playStep(0);
-  }, 400);
+  }, 300);
   conversationTimeouts.push(initialTimer);
 }
 

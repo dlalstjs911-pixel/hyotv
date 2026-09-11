@@ -347,6 +347,27 @@ function handleCallLogChange(callData) {
                     (!callData.status && callData.call_type) ||
                     (callData.status !== 'rejected' && callData.status !== 'ended' && callData.status !== 'accepted' && callData.call_type);
 
+  // ⭐️ 이미 음성 통화 또는 영상 통화가 진행 중인 경우, 중복 신호로 인해 대화 시퀀스가 리셋되는 현상 원천 차단!
+  const isVoiceActive = typeof isVoiceCallActiveInModal !== 'undefined' && isVoiceCallActiveInModal;
+  const videoModal = document.getElementById('modal-videocall-active');
+  const isVideoActive = videoModal && videoModal.classList.contains('open');
+
+  if (isVoiceActive || isVideoActive) {
+    if (callData.status === 'rejected' || callData.status === 'ended') {
+      if (typeof closeGlobalIncomingCallModal === 'function') {
+        closeGlobalIncomingCallModal();
+      }
+      if (typeof endCall === 'function' && isVideoActive) {
+        endCall();
+      } else if (typeof endVoiceCallInModal === 'function' && isVoiceActive) {
+        endVoiceCallInModal();
+      }
+    } else {
+      console.log('[Call Handler] 통화가 이미 진행 중이므로 중복 신호 무시:', callData.id, callData.status);
+    }
+    return;
+  }
+
   if (isCalling) {
     handleIncomingCallSignal(callData);
   } else if (callData.status === 'rejected' || callData.status === 'ended') {

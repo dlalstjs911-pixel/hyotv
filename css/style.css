@@ -187,6 +187,95 @@ body, html {
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
 }
 
+/* 상단 스피커 켜기 버튼 */
+.tv-nav-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #34d399;
+  border-radius: 18px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.tv-nav-audio-btn:hover {
+  background: rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* 🔊 화면 최우측 상단 상시 고정 플로팅 스피커 켜기 버튼 (모든 화면/모달 최우선 표시) */
+.global-floating-audio-btn {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  z-index: 1000000;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 30px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.55), 0 0 12px rgba(52, 211, 153, 0.4);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: -0.2px;
+}
+
+.global-floating-audio-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.7), 0 0 16px rgba(52, 211, 153, 0.6);
+  background: linear-gradient(135deg, #34d399, #059669);
+}
+
+.global-floating-audio-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.global-floating-audio-btn .audio-btn-icon {
+  font-size: 1.1rem;
+  animation: audioPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes audioPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* 📞 통화 수신 카드 내부 스피커 빠른 활성화 버튼 */
+.incoming-audio-quick-btn {
+  margin: 10px 0 14px;
+  padding: 8px 18px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  color: #34d399;
+  font-weight: 700;
+  font-size: 0.88rem;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.incoming-audio-quick-btn:hover {
+  background: rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
 /* ----------------------------------------------------
    0. 서비스 소개 페이지 (Service Introduction Overview)
 ---------------------------------------------------- */

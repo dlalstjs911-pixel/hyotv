@@ -51,47 +51,53 @@ function closeMorningDialogOnly() {
 
 let isTtsSpeaking = false;
 let lastTtsEndTime = 0;
+let activeUtterances = []; // ⭐️ 크롬/사파리 GC(가비지 컬렉션)에 의한 발화 중단 및 이벤트 누락 방지 전역 앵커
 
 // --- 한국어 음성 발화 공통 함수 (딸: 30-40대 중년 여성, 엄마: 70대 여성 어르신 톤) ---
 function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd = null) {
-  if (!('speechSynthesis' in window)) {
-    if (onStart) onStart();
-    const mockDuration = Math.max(1800, (text ? text.length * 150 : 2000));
-    setTimeout(() => { if (onEnd) onEnd(); }, mockDuration);
+  if (!text) {
+    if (onEnd) onEnd();
     return;
   }
 
-  // ⭐️ 핵심: 브라우저가 TTS 발화를 일시정지하거나 onend를 누락해도 대화가 영구 멈춤에 빠지지 않도록 안전 Fallback 타이머 가동
   let hasFinished = false;
+  let fallbackTimer = null;
+
   const finishSpeech = () => {
     if (hasFinished) return;
     hasFinished = true;
-    clearTimeout(fallbackTimer);
+    if (fallbackTimer) clearTimeout(fallbackTimer);
     isTtsSpeaking = false;
     lastTtsEndTime = Date.now();
+    activeUtterances = []; // 발화 완료 후 참조 해제
     if (onEnd) onEnd();
   };
 
-  // 텍스트 길이에 기반한 안전 완료 시간 (글자당 200ms + 여유 1.5초)
-  const safeTimeoutMs = Math.max(2000, ((text ? text.length : 10) * 220) + 1500);
-  const fallbackTimer = setTimeout(() => {
+  // ⭐️ 텍스트 길이에 기반한 안전 완료 시간 (TTS가 묵음이거나 차단되어도 대화가 100% 다음으로 진행!)
+  const safeTimeoutMs = Math.max(2000, (text.length * 240) + 1200);
+  fallbackTimer = setTimeout(() => {
     console.warn('[TV TTS] 발화 대기 시간 초과(Fallback 진행):', text);
     finishSpeech();
   }, safeTimeoutMs);
 
+  if (!('speechSynthesis' in window)) {
+    if (onStart) onStart();
+    return;
+  }
+
   try {
-    // 큐에 밀려있던 이전 잔여 발화 정리 및 오디오 컨텍스트 깨우기
     window.speechSynthesis.cancel();
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
   } catch (e) {}
 
-  // ⭐️ 핵심: cancel()과 speak() 사이의 크롬 브라우저 충돌 버그 방지를 위해 40ms 안전 지연 후 speak 실행
+  // cancel() 직후 충돌 방지를 위해 30ms 안전 지연 후 speak 실행
   setTimeout(() => {
     try {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ko-KR';
+      activeUtterances.push(utterance); // ⭐️ GC 수집 방지 전역 등록!
 
       utterance.onstart = () => {
         isTtsSpeaking = true;
@@ -108,11 +114,9 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
       };
 
       if (role === 'mother') {
-        // 70대 여성 어르신 톤: 다소 천천히(0.85), 인자하고 낮은 목소리(0.75)
         utterance.rate = 0.85;
         utterance.pitch = 0.75;
       } else {
-        // 30-40대 중년 딸 톤: 부드럽고 또렷한 톤
         utterance.rate = 0.92;
         utterance.pitch = pitch || 0.95;
       }
@@ -123,30 +127,40 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
       if (koreanVoices.length > 0) {
         let selectedVoice = koreanVoices[0];
         if (role === 'mother') {
-          // 70대 어르신 보이스: 네트워크 지연 없는 로컬 보이스 우선 매칭
           selectedVoice = koreanVoices.find(v => v.localService && !v.name.includes('Google')) ||
                           koreanVoices.find(v => !v.name.includes('Google')) ||
                           koreanVoices[koreanVoices.length - 1];
         } else {
-          // 30-40대 딸 보이스: 즉시 응답하는 여성 보이스 매칭
           selectedVoice = koreanVoices.find(v => 
             v.name.toLowerCase().includes('yuna') || 
             v.name.toLowerCase().includes('sun-hi') || 
             v.name.toLowerCase().includes('female')
           ) || koreanVoices[0];
         }
-        utterance.voice = selectedVoice;
+        if (selectedVoice) utterance.voice = selectedVoice;
       }
 
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
       window.speechSynthesis.speak(utterance);
+
+      // 크롬 백그라운드 탭 멈춤 버그 방지용 주기적 resume 핑
+      const resumePing = setInterval(() => {
+        if (hasFinished || !isTtsSpeaking) {
+          clearInterval(resumePing);
+          return;
+        }
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      }, 300);
+
     } catch (err) {
       console.warn('[TV TTS] speak 실행 예외:', err);
       finishSpeech();
     }
-  }, 40);
+  }, 30);
 }
 
 let currentMedicationNoticeText = "엄마 약 먹을 시간이야";
@@ -579,6 +593,14 @@ function closeGlobalIncomingCallModal() {
 
 // --- 영상통화 수신 [수락] 버튼: 엄마와 딸의 자연스러운 대화 영상 시퀀스 실행 ---
 function handleCallAccept() {
+  // 이전 대화 타이머 및 음성 큐 정리
+  clearConversationSequence();
+
+  // 브라우저 오디오 언락
+  if (window.speechSynthesis && window.speechSynthesis.paused) {
+    try { window.speechSynthesis.resume(); } catch (e) {}
+  }
+
   // 1. 남아있는 영상통화 수신 예약 타이머 즉시 취소 (팝업 재오픈 원천 차단!)
   clearTimeout(videoCallTimer);
   videoCallTimer = null;
@@ -615,8 +637,6 @@ function handleCallAccept() {
 }
 
 function startMotherDaughterConversation() {
-  clearConversationSequence();
-
   const motherBubble = document.getElementById('mother-dialog-bubble');
   const daughterBubble = document.getElementById('daughter-dialog-bubble');
   const motherText = document.getElementById('mother-speech-text');

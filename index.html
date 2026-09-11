@@ -17,11 +17,6 @@
     <button class="tv-nav-item" data-target="videocall">통화수신</button>
 
     <div class="tv-nav-right">
-      <!-- 🔊 브라우저 스피커/음성 켜기 버튼 (단 1개만 배치) -->
-      <button id="tv-audio-toggle-btn" class="tv-nav-audio-btn" onclick="unlockAudioSystem(); showToast('🔊 TV 스피커 및 음성(TTS)이 활성화되었습니다.', '🔊');" title="스피커 활성화">
-        <span>🔊 스피커 켜기</span>
-      </button>
-
       <!-- ⚡ Supabase 실시간 연동 상태 뱃지 (연결: 초록, 미연결: 빨강) -->
       <div id="supabase-status-badge" class="supabase-status-badge connected" title="Supabase 연결 상태">
         <span class="supabase-dot"></span>
@@ -346,11 +341,6 @@
         <span class="incoming-badge-dot"></span>
         <span id="incoming-call-type-text">영상통화 요청 중...</span>
       </div>
-
-      <!-- 🔊 통화 수신 카드 내 스피커 언락 보조 버튼 -->
-      <button class="incoming-audio-quick-btn" onclick="unlockAudioSystem(); showToast('🔊 TV 스피커가 활성화되었습니다.', '🔊');">
-        <span>🔊 스피커 소리 켜기</span>
-      </button>
 
 
       <!-- 1. 수신 요청 중 버튼들 (수락 / 거절) -->

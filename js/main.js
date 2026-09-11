@@ -17,8 +17,24 @@ function handleMorningDialogClick() {
     win.classList.add('hide-dialog');
   }
 
+  // ⚡ 실제 확인한 현재 시각 생성
+  const confirmedTimeStr = typeof getFormattedCurrentTime === 'function' ? getFormattedCurrentTime() : '';
+  const timeSubEl = document.getElementById('morning-sent-modal-time');
+  if (timeSubEl && confirmedTimeStr) {
+    timeSubEl.innerText = `${confirmedTimeStr} 확인 완료`;
+  }
+
   openModal('modal-morning-sent');
-  showToast("아침 인사가 잘 전달 되었습니다. 😊", '💌');
+  showToast(confirmedTimeStr ? `${confirmedTimeStr} 아침 인사가 잘 전달 되었습니다. 😊` : "아침 인사가 잘 전달 되었습니다. 😊", '💌');
+
+  // ⚡ Supabase user_logs 테이블에 실제 확인 시간 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('morning_greeting_replied', {
+      response: '잘 잤어',
+      sender: '엄마',
+      target: '우리 딸 지영'
+    });
+  }
 
   clearTimeout(morningSentAutoCloseTimer);
   morningSentAutoCloseTimer = setTimeout(() => {
@@ -239,7 +255,22 @@ function handleMedicationTaken() {
     popupCard.classList.add('hide-card');
   }
   
+  // ⚡ 복약 완료 팝업 모달 문구를 "실제 확인(클릭)한 현재 시각"으로 갱신
+  const actualTime = typeof getFormattedCurrentTime === 'function' ? getFormattedCurrentTime() : '';
+  if (typeof updateMedicationDoneModalText === 'function') {
+    updateMedicationDoneModalText(window.currentMedicationName, actualTime);
+  }
+
   openModal('modal-med-done');
+
+  // ⚡ Supabase user_logs 테이블에 실제 확인 시간 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('medication_taken', {
+      medicine_name: window.currentMedicationName || '당뇨약',
+      scheduled_time: window.currentMedicationTime || '17:30',
+      medication_id: typeof currentMedicationId !== 'undefined' ? currentMedicationId : null
+    });
+  }
 
   // ⚡ Supabase DB로 복약 완료 상태 실시간 전송
   if (typeof updateSupabaseStatusTaken === 'function') {
@@ -263,6 +294,14 @@ function handleMedicationSnooze() {
   }
   
   openModal('modal-med-snooze');
+
+  // ⚡ Supabase user_logs에 복약 연기 실제 확인 시간 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('medication_snoozed', {
+      medicine_name: window.currentMedicationName || '당뇨약',
+      scheduled_time: window.currentMedicationTime || '17:30'
+    });
+  }
 
   clearTimeout(medSnoozeAutoCloseTimer);
   medSnoozeAutoCloseTimer = setTimeout(() => {
@@ -298,6 +337,15 @@ function handleGlobalCallAccept() {
     updateCallLogStatus(null, 'accepted');
   }
 
+  // ⚡ Supabase user_logs에 실제 통화 수락 시각 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('call_accepted', {
+      call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
+      target: '우리 딸 지영',
+      call_type: 'video'
+    });
+  }
+
   // 기존 5:5 라이브 영상통화 시퀀스 오픈
   handleCallAccept();
 }
@@ -308,6 +356,15 @@ function handleGlobalCallDecline() {
   // Supabase call_logs 테이블 status -> 'rejected' 동기화
   if (typeof updateCallLogStatus === 'function') {
     updateCallLogStatus(null, 'rejected');
+  }
+
+  // ⚡ Supabase user_logs에 실제 통화 거절 시각 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('call_rejected', {
+      call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
+      target: '우리 딸 지영',
+      call_type: 'video'
+    });
   }
 
   sendCallSignal('CALL_ENDED');
@@ -451,6 +508,15 @@ function endCall() {
     updateCallLogStatus(null, 'ended');
   }
 
+  // ⚡ Supabase user_logs에 실제 통화 종료 시각 및 통화 지속시간(초) 영구 저장
+  if (typeof logUserActionToSupabase === 'function') {
+    logUserActionToSupabase('call_ended', {
+      call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
+      target: '우리 딸 지영',
+      duration_seconds: typeof callSeconds !== 'undefined' ? callSeconds : 0
+    });
+  }
+
   closeModal('modal-videocall-active');
   const popupCard = document.getElementById('videocall-popup-card');
   if (popupCard) {
@@ -521,6 +587,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeStr = matchTime ? matchTime[0] : '17:30';
     el.innerText = `🔔 ${todayStr} ${timeStr}`;
   });
+
+  // 복약 완료 팝업 모달 문구 초기 갱신
+  if (typeof updateMedicationDoneModalText === 'function') {
+    updateMedicationDoneModalText();
+  }
 
   const navItems = document.querySelectorAll('.tv-nav-item');
   navItems.forEach(item => {

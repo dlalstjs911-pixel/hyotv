@@ -74,6 +74,60 @@ function getTodayDateString() {
   return `${month}월 ${date}일 (${dayName})`;
 }
 
+// 실제 확인(클릭)한 현재 실시간 시각 헬퍼 (예: "9월 11일 (금) 17:42")
+function getFormattedCurrentTime() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const date = now.getDate();
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayName = dayNames[now.getDay()];
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${month}월 ${date}일 (${dayName}) ${hours}:${minutes}`;
+}
+
+// 복약 완료 모달(#modal-med-done) 내부 텍스트를 "실제 확인한 현재 시각"으로 갱신
+function updateMedicationDoneModalText(name, actualConfirmedTime) {
+  const modalBody = document.getElementById('med-done-modal-body') || document.querySelector('#modal-med-done .modal-body-text');
+  if (!modalBody) return;
+
+  const displayTime = actualConfirmedTime || getFormattedCurrentTime();
+  const medName = name || window.currentMedicationName || '당뇨약';
+
+  modalBody.innerText = `${displayTime} 복약(${medName}) 복용이 완료되었습니다.`;
+}
+
+// ⚡ Supabase user_logs 테이블에 실제 확인 시각 영구 저장 공통 함수
+async function logUserActionToSupabase(action, details = {}) {
+  if (!supabaseClient) return;
+
+  try {
+    const recordTimeIso = new Date().toISOString();
+    const recordTimeLocal = getFormattedCurrentTime();
+
+    const payload = {
+      action: action,
+      details: {
+        ...details,
+        confirmed_at: recordTimeIso,
+        confirmed_at_local: recordTimeLocal
+      }
+    };
+
+    const { data, error } = await supabaseClient
+      .from('user_logs')
+      .insert([payload]);
+
+    if (error) {
+      console.warn(`[Supabase Log] '${action}' 로그 기록 에러:`, error);
+    } else {
+      console.log(`[Supabase Log] ⚡ '${action}' 실제 확인 시간 영구 저장 완료 (${recordTimeLocal}):`, payload);
+    }
+  } catch (err) {
+    console.warn(`[Supabase Log] '${action}' 로그 예외:`, err);
+  }
+}
+
 // 3. 수신된 Supabase 데이터를 효TV 화면 UI에 동적 반영
 function applyDataToHyoTvUI(item) {
   if (!item) return;
@@ -114,7 +168,12 @@ function applyDataToHyoTvUI(item) {
     }
   }
 
-  // 3) 새 알림 수신 시 효TV에 복약 화면 자동 전환 & 팝업 오픈 트리거 및 토스트 알림!
+  // 3) 복약 완료 팝업 모달 문구 실시간 동적 연동 (오늘날짜, 요일, 시간, 약이름)
+  window.currentMedicationName = titleVal || '당뇨약';
+  window.currentMedicationTime = timeText;
+  updateMedicationDoneModalText(window.currentMedicationName, window.currentMedicationTime);
+
+  // 4) 새 알림 수신 시 효TV에 복약 화면 자동 전환 & 팝업 오픈 트리거 및 토스트 알림!
   const displayTitle = titleVal || '복약 시간';
   const displayTime = timeVal ? ` (${timeVal})` : '';
   showToast(`⚡ Supabase 알림 수신: ${displayTitle}${displayTime}`, '💊');

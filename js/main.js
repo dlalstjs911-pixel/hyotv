@@ -361,6 +361,11 @@ function handleGlobalCallAccept() {
     });
   }
 
+  // ⭐️ 핵심: 음성이든 영상이든 통화가 연결되면 리모컨으로 CALL_STARTED를 전송하여 마이크 음소거 및 상태 동기화
+  if (typeof sendCallSignal === 'function') {
+    sendCallSignal('CALL_STARTED');
+  }
+
   if (isVoice) {
     // 📞 음성 통화: 팝업을 닫지 않고, [수락/거절] 버튼을 숨긴 채 '전화(음성) 통화 중...' + 자녀 사진 화면으로 전환
     const reqBtns = document.getElementById('incoming-action-buttons');
@@ -765,7 +770,10 @@ function handleRemoteAction(action) {
   
   // ⚡ 전역 통화 수신 모달 열림 여부 확인
   const incomingGlobalModal = document.getElementById('modal-incoming-call-global');
-  const isIncomingGlobalOpen = incomingGlobalModal && incomingGlobalModal.classList.contains('open');
+  const isIncomingGlobalOpen = incomingGlobalModal && (
+    incomingGlobalModal.classList.contains('open') || 
+    (window.getComputedStyle && window.getComputedStyle(incomingGlobalModal).display !== 'none' && window.getComputedStyle(incomingGlobalModal).visibility !== 'hidden')
+  );
 
   // 현재 활성화된 화면 식별
   const activePageEl = document.querySelector('.tv-page.active');
@@ -1021,7 +1029,9 @@ function handleTvVoiceCommand(text) {
     '엄마좋은아침이에요잘잤어요', '좋은아침이에요잘잤어요', '잘잤어요', '잘자써요', '잘캈어요', '잘컸어요', '잘잤니',
     '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요', '좋은아침',
     '엄마약먹을시간', '약먹을시간이야', '약먹을시간',
-    '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요'
+    '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요',
+    '엄마전화가왔어요', '전화가왔어요', '엄마영상통화가왔어요', '영상통화가왔어요',
+    '통화를수락하시겠어요', '전화를수락하시겠어요', '수락하시겠어요'
   ];
 
   // ⭐️ 핵심: TV TTS가 재생 중이거나 발화가 끝난 지 1.5초 이내(스피커 잔향 구간)에 들어온 TV 자체 음성은 100% 무시!
@@ -1089,8 +1099,13 @@ function handleTvVoiceCommand(text) {
     '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
     '약먹었', '약먹었어요', '약먹었습니다',
     
-    // 통화 연결
-    '여보세요', '통화', '전화받아', '연결',
+    // 📞 통화 연결 (구어체 및 다양한 수신 표현 대폭 확장)
+    '여보세요', '여보쇼', '여보세여', '여보시요',
+    '수락해', '수락해줘', '수락한다', '수락할게',
+    '받아줘', '받을게', '받을래', '받는다',
+    '전화받아', '전화받아줘', '전화받을게', '전화받을래', '전화왔네', '전화왔어',
+    '통화', '통화해', '통화하자', '연결', '연결해', '연결해줘',
+    '어지영아', '어딸', '어그래',
     
     // 🌅 아침 인사 응답 (부모님의 실제 응답 어간: 잘 잤어, 잘 잤다, 푹 잤어 등)
     '잘잤어', '잘잤다', '잘잤지', '잘잤네', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어'

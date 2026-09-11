@@ -91,12 +91,19 @@ function connectToTV(tvPeerId) {
 
 // 팝업이 떴을 때 버튼 누를 필요 없이 자동 마이크 활성화
 function handleTvPopupNotification(popupType) {
-  if (navigator.vibrate) {
-    try { navigator.vibrate([120, 80, 120]); } catch (e) {}
-  }
+  isCallActiveOnTv = false; // 새 알림이 오면 혹시 남아있던 통화 락 초기화
 
-  showRemoteToast('🔔 TV 알림 도착! "먹었어", "수락" 등을 말씀하세요!');
-  updateVoiceHUD('listening', '🔔 TV 알림 도착! 지금 말씀하세요! ("먹었어", "수락" 등)');
+  if (popupType === 'incoming_call') {
+    if (navigator.vibrate) {
+      try { navigator.vibrate([200, 100, 200, 100, 300]); } catch (e) {}
+    }
+    showRemoteToast('📞 전화가 왔습니다! "여보세요" 또는 [O]를 누르세요!');
+  } else {
+    if (navigator.vibrate) {
+      try { navigator.vibrate([120, 80, 120]); } catch (e) {}
+    }
+    showRemoteToast('🔔 TV 알림 도착! "먹었어", "수락" 등을 말씀하세요!');
+  }
   
   // 버튼 클릭 없이 즉시 말하기(음성인식) 가동
   try {
@@ -247,12 +254,12 @@ function startVoiceRecognitionFresh() {
     listenTimeout = null;
   }
 
-  // ⭐️ 핵심: 유저 제스처(터치/클릭) 유실 방지를 위해 setTimeout 없이 동기적으로 즉시 start() 실행!
+  // ⭐️ 핵심: 유저 제스처(터치/클릭) 유실 방지를 위해 동기적으로 즉시 start() 실행!
   try {
     recognition = new SpeechRecognition();
     recognition.lang = 'ko-KR';
-    recognition.continuous = false;     // iOS Safari 안정 모드
-    recognition.interimResults = true;  // 실시간 단어 감지
+    recognition.continuous = true;      // 중간에 침묵이나 쉼표가 있어도 마이크가 끊기지 않도록 연속 청취 모드
+    recognition.interimResults = true;  // 실시간 중간 단어 감지 (여보세요, 수락 발화 즉시 반응)
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
@@ -262,6 +269,8 @@ function startVoiceRecognitionFresh() {
     };
 
     recognition.onresult = (event) => {
+      if (commandHandled) return;
+
       let transcript = '';
       for (let i = 0; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript;
@@ -292,7 +301,7 @@ function startVoiceRecognitionFresh() {
         showRemoteToast('⚠️ Safari 주소창 [가A] ➔ 웹사이트 설정 ➔ 마이크 [허용] 설정');
         stopVoiceRecognitionGraceful(false);
       } else if (event.error === 'no-speech') {
-        console.log('[Remote STT] 침묵 감지됨 - 대기 시간 내 계속 청취');
+        console.log('[Remote STT] 침묵 감지됨 - 계속 청취 유지');
         updateVoiceHUD('listening', '말씀을 듣고 있어요... 조금 더 크게 말씀해 주세요!');
       } else {
         console.log('[Remote STT 기타 상태]', event.error);
@@ -301,15 +310,26 @@ function startVoiceRecognitionFresh() {
 
     recognition.onend = () => {
       console.log('[Remote STT] 단일 세션 완료');
-      // 8초 대기 창이 유효하고 명령 처리가 안 되었다면 즉시 청취 유지
+      // 아직 명령 처리가 안 되었고 리스닝 상태라면 안전하게 재연결 시도
       if (isListening && !commandHandled) {
         try {
-          if (recognition) recognition.start();
+          if (recognition) {
+            recognition.start();
+            return;
+          }
         } catch (e) {
-          setTimeout(() => {
-            if (isListening && !commandHandled) startVoiceRecognitionFresh();
-          }, 80);
+          console.log('[Remote STT] 재시작 대기 중...');
         }
+        setTimeout(() => {
+          if (isListening && !commandHandled) {
+            try {
+              startVoiceRecognitionFresh();
+            } catch (err) {
+              updateMicButtonUI('idle');
+              isListening = false;
+            }
+          }
+        }, 150);
       } else {
         updateMicButtonUI('idle');
         recognition = null;
@@ -331,6 +351,7 @@ function toggleVoiceRecognition() {
   if (isListening) {
     stopVoiceRecognitionGraceful(true);
   } else {
+    isCallActiveOnTv = false; // 수동으로 마이크를 켤 때는 혹시 남아있던 통화 락 즉시 해제
     startVoiceRecognitionFresh();
   }
 }
@@ -339,25 +360,15 @@ function toggleVoiceRecognition() {
 function handleVoiceCommand(text) {
   const lower = text.replace(/\s+/g, '').toLowerCase(); // 공백 제거 후 비교
 
-  // ⭐️ [통화 중 보호] TV에서 통화가 진행 중일 때:
-  // 오직 명확한 통화 종료 발화만 BTN_RED로 전송하고, 통화 중 일상 대화('아니', '이따', '먹었어' 등)로 통화가 끊기지 않도록 차단
-  if (isCallActiveOnTv) {
-    const hangupWords = ['통화종료', '전화끊어', '전화끊자', '통화끝', '통화종료해줘', '통화종료할게'];
-    if (hangupWords.some(kw => lower.includes(kw))) {
-      sendAction('BTN_RED');
-      isCallActiveOnTv = false;
-      return true;
-    }
-    return false; // 통화 중 일상 대화는 TV로 신호 전송하지 않고 무시!
-  }
-
   // ⭐️ [TV 안내 방송 에코 방지] TV 스피커 소리가 스마트폰 리모컨 마이크로 들어가 자동 오작동하는 현상 원천 차단
   const tvPromptEchoes = [
     '엄마좋은아침이에요잘주무셨어요', '좋은아침이에요잘주무셨어요', '잘주무셨어요', '잘주무셨니',
     '엄마좋은아침이에요잘잤어요', '좋은아침이에요잘잤어요', '잘잤어요', '잘자써요', '잘캈어요', '잘컸어요', '잘잤니',
     '엄마좋은아침', '좋은아침이에요', '엄마좋은아침이에요', '좋은아침',
     '엄마약먹을시간', '약먹을시간이야', '약먹을시간',
-    '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요'
+    '엄마뭐하고계셨어요', '뭐하고계셨어요', '드라마보고있었어', '저녁은먹었니', '네엄마는요',
+    '엄마전화가왔어요', '전화가왔어요', '엄마영상통화가왔어요', '영상통화가왔어요',
+    '통화를수락하시겠어요', '전화를수락하시겠어요', '수락하시겠어요'
   ];
   if (tvPromptEchoes.some(echo => lower.includes(echo))) {
     console.log('[Remote STT] TV 스피커 안내 방송/질문 에코 무시:', text);
@@ -375,6 +386,34 @@ function handleVoiceCommand(text) {
     return true;
   }
 
+  // 📞 [통화 수신 최우선 감지]: 사용자가 "수락", "여보세요", "전화받아"를 발화한 경우 최우선 통화 연결!
+  const callAcceptKeywords = [
+    '여보세요', '여보쇼', '여보세여', '여보시요', '여보',
+    '수락', '수락해', '수락해줘', '수락한다', '수락할게', '수락이요',
+    '전화받아', '전화받아라', '전화받아줘', '전화받을게', '전화받을래', '전화왔네', '전화왔어',
+    '받아줘', '받을게', '받을래', '받는다', '받아야지',
+    '통화', '통화해', '통화하자', '연결', '연결해', '연결해줘',
+    '어지영아', '어딸', '어그래'
+  ];
+  if (callAcceptKeywords.some(kw => lower.includes(kw))) {
+    console.log('[Remote STT] 📞 통화 수신/수락 키워드 감지 -> 즉시 수락 전송:', text);
+    isCallActiveOnTv = true; // 통화 상태로 전환
+    sendAction('BTN_GREEN');
+    return true;
+  }
+
+  // ⭐️ [통화 중 보호] TV에서 통화가 진행 중일 때:
+  // 오직 명확한 통화 종료 발화만 BTN_RED로 전송하고, 통화 중 일상 대화('아니', '이따', '먹었어' 등)로 통화가 끊기지 않도록 차단
+  if (isCallActiveOnTv) {
+    const hangupWords = ['통화종료', '전화끊어', '전화끊자', '통화끝', '통화종료해줘', '통화종료할게', '끊어', '끊자', '끊을래'];
+    if (hangupWords.some(kw => lower.includes(kw))) {
+      sendAction('BTN_RED');
+      isCallActiveOnTv = false;
+      return true;
+    }
+    return false; // 통화 중 일상 대화는 TV로 신호 전송하지 않고 무시!
+  }
+
   // 🔴 빨강 계열 (X, 거절, 취소, 연기, 통화 종료)
   const redKeywords = [
     '아니', '아니요', '아뇨', '아냐', '안해', '안할래',
@@ -389,21 +428,18 @@ function handleVoiceCommand(text) {
     return true;
   }
 
-  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 통화 연결, 아침 인사)
+  // 🟢 초록 계열 (O, 수락, 긍정, 복약 완료, 아침 인사)
   const greenKeywords = [
-    // 공통 긍정 및 수락 (어간 단위 확장: 알았다, 알겠습니다, 좋다, 그럼 등 모두 포함)
+    // 공통 긍정 및 수락
     '네', '예', '응', '내', '넹', '옙', '어먹었어',
     '그래', '그럼', '그려', '그라제',
     '좋아', '좋아요', '좋다', '좋지', '좋네', '오냐',
     '알았', '알았어', '알았어요', '알았다', '알았지', '알았네', '알겠', '알겠어', '알겠어요', '알겠습니다', '알겠다',
-    '확인', '완료', '수락', '동의', '받아', '받아라',
+    '확인', '완료', '동의', '받아', '받아라',
     
     // 복약 완료
     '먹었', '먹었어', '먹었어요', '먹었습니다', '먹음', '먹었다', '먹었지', '먹었네',
     '약먹었', '약먹었어요', '약먹었습니다',
-    
-    // 통화 연결
-    '여보세요', '통화', '전화받아', '연결',
     
     // 🌅 아침 인사 응답 (부모님의 실제 응답 어간)
     '잘잤어', '잘잤다', '잘잤지', '잘잤네', '잘자서', '잘잣', '푹잤', '푹자', '일어났', '자고일어'

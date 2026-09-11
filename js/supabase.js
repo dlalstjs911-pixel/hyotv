@@ -341,8 +341,12 @@ function handleCallLogChange(callData) {
   if (!callData) return;
   console.log('[Call Handler] 웹앱 통화 신호 수신:', callData.id, callData.call_type, callData.status);
 
-  // status가 'calling'이거나, 신규 통화 요청(status가 rejected/ended가 아님)
-  const isCalling = callData.status === 'calling' || (!callData.status && callData.call_type);
+  // status가 'calling', 'ringing'이거나, 신규 통화 요청(rejected/ended가 아님)
+  const isCalling = callData.status === 'calling' || 
+                    callData.status === 'ringing' || 
+                    (!callData.status && callData.call_type) ||
+                    (callData.status !== 'rejected' && callData.status !== 'ended' && callData.status !== 'accepted' && callData.call_type);
+
   if (isCalling) {
     handleIncomingCallSignal(callData);
   } else if (callData.status === 'rejected' || callData.status === 'ended') {
@@ -375,14 +379,26 @@ function handleIncomingCallSignal(callData) {
 
   // 3. 토스트 및 딸 목소리 TTS 음성 안내
   showToast(`📞 [${callTypeName}] 전화가 걸려왔습니다!`, '📞');
+
+  let remoteNotified = false;
+  const notifyRemoteMic = () => {
+    if (remoteNotified) return;
+    remoteNotified = true;
+    if (typeof sendPopupOpenedSignal === 'function') {
+      sendPopupOpenedSignal('incoming_call');
+    }
+  };
+
   if (typeof speakText === 'function') {
     const speechMsg = isVoice ? '엄마, 전화가 왔어요. 통화를 수락하시겠어요?' : '엄마, 영상 통화가 왔어요. 통화를 수락하시겠어요?';
-    speakText(speechMsg, 0.95, 'daughter');
-  }
-
-  // 4. 가상 리모컨으로 수신 팝업 오픈 신호 전달 (리모컨 진동 + 마이크 On)
-  if (typeof sendPopupOpenedSignal === 'function') {
-    sendPopupOpenedSignal('incoming_call');
+    // ⭐️ 핵심: TV TTS 음성 안내가 완전히 끝난 시점에 리모컨 마이크를 활성화하여 TV 스피커 소리로 인한 마이크 오인식/먹통 방지!
+    speakText(speechMsg, 0.95, 'daughter', null, () => {
+      notifyRemoteMic();
+    });
+    // TTS 브라우저 미지원 또는 지연 시 대비 2.5초 안전 타임아웃
+    setTimeout(notifyRemoteMic, 2500);
+  } else {
+    notifyRemoteMic();
   }
 }
 

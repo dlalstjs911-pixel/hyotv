@@ -130,31 +130,21 @@ function speakMedicationNotice(customText) {
   speakText(textToSpeak, 0.95, 'daughter');
 }
 
-// --- 복약 알림: 3초 TV 시청 후 팝업 카드 등장 -> 0.5초 후 40대 여성 음성 송출 ---
+// --- 복약 알림: TV 시청 화면 준비 (Supabase Realtime 신호 수신 대기 상태 유지) ---
 function triggerMedicationNotice() {
   const popupCard = document.getElementById('medication-popup-card');
   const countdownBadge = document.getElementById('med-countdown-badge');
 
   if (!popupCard) return;
 
-  popupCard.classList.add('hide-card');
-  if (countdownBadge) {
-    countdownBadge.innerText = '📺 TV 방송 시청 중... (3초 후 복약 알림 전환)';
+  // 3초 자동 실행 대신, Realtime 알림이 오기 전까지 팝업을 대기 상태로 둠
+  clearTimeout(medicationTimer);
+  medicationTimer = null;
+
+  if (popupCard.classList.contains('hide-card') && countdownBadge) {
+    countdownBadge.innerText = '📺 TV 방송 시청 중... (복약 알림 대기 중)';
     countdownBadge.style.opacity = '1';
   }
-
-  clearTimeout(medicationTimer);
-  medicationTimer = setTimeout(() => {
-    popupCard.classList.remove('hide-card');
-    if (countdownBadge) {
-      countdownBadge.style.opacity = '0';
-    }
-    
-    setTimeout(() => {
-      speakMedicationNotice();
-      sendPopupOpenedSignal('medication');
-    }, 500);
-  }, 3000);
 }
 
 // --- 영상통화 시청 화면 준비 (웹앱 호출 대기 상태 유지) ---
@@ -272,6 +262,11 @@ function handleMedicationTaken() {
     });
   }
 
+  // ⚡ Supabase medication_logs 행의 status -> 'taken' 업데이트
+  if (typeof updateMedicationLogStatus === 'function') {
+    updateMedicationLogStatus(window.currentMedicationLogId, 'taken');
+  }
+
   // ⚡ Supabase DB로 복약 완료 상태 실시간 전송
   if (typeof updateSupabaseStatusTaken === 'function') {
     updateSupabaseStatusTaken();
@@ -301,6 +296,11 @@ function handleMedicationSnooze() {
       medicine_name: window.currentMedicationName || '당뇨약',
       scheduled_time: window.currentMedicationTime || '17:30'
     });
+  }
+
+  // ⚡ Supabase medication_logs 행의 status -> 'missed' 업데이트
+  if (typeof updateMedicationLogStatus === 'function') {
+    updateMedicationLogStatus(window.currentMedicationLogId, 'missed');
   }
 
   clearTimeout(medSnoozeAutoCloseTimer);

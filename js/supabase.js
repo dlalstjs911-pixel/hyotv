@@ -206,11 +206,15 @@ function subscribeToRealtimeUpdates() {
             const newItem = payload.new;
             if (!newItem) return;
 
-            // 통화 로그(call_logs) 테이블 변경 감지
-            if (payload.table === 'call_logs' || ('call_type' in newItem && 'target' in newItem)) {
+            // 1) 복약 로그(medication_logs) 테이블 새 데이터(INSERT) 감지 💊
+            if (payload.table === 'medication_logs' && payload.eventType === 'INSERT') {
+              handleMedicationLogInsert(newItem);
+            }
+            // 2) 통화 로그(call_logs) 테이블 변경 감지 📞
+            else if (payload.table === 'call_logs' || ('call_type' in newItem && 'target' in newItem)) {
               handleCallLogChange(newItem);
             } 
-            // 복약 알림(medications) 테이블 변경 감지
+            // 3) 복약 알림(medications) 설정 테이블 변경 감지
             else if (payload.table === 'medications' || ('cycle_type' in newItem || 'times' in newItem)) {
               applyDataToHyoTvUI(newItem);
               showToast('⚡ 자녀 웹앱에서 실시간 알림이 도착했습니다!', '🔔');
@@ -241,10 +245,95 @@ function subscribeToRealtimeUpdates() {
         }
       )
       .subscribe();
+
+    // 3) 💊 medication_logs 테이블 전용 명시적 구독 채널 (INSERT 실시간 감지)
+    supabaseClient
+      .channel('hyotv-medication-logs-channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'medication_logs' },
+        (payload) => {
+          console.log('[Supabase Realtime Medication Logs] 새 복약 알림 INSERT 수신 💊:', payload);
+          if (payload.new) {
+            handleMedicationLogInsert(payload.new);
+          }
+        }
+      )
+      .subscribe();
   } catch (err) {
     console.warn('[Supabase Realtime] 구독 설정 경고:', err);
     setSupabaseStatus(false);
   }
+}
+
+// 💊 실시간 복약 알림 수신 처리기 (medication_logs에 INSERT 발생 시 즉시 TV 팝업 오픈)
+let currentMedicationLogId = null;
+
+function handleMedicationLogInsert(logData) {
+  if (!logData) return;
+  console.log('[Medication Handler] 새 복약 알림 신호 수신:', logData);
+
+  currentMedicationLogId = logData.id;
+  window.currentMedicationLogId = logData.id;
+
+  // 약 이름 추출
+  const medName = logData.medication_name || logData.name || logData.medicine_name || '당뇨약';
+  window.currentMedicationName = medName;
+
+  // 예정 시각 추출 (scheduled_at 필드가 있으면 사용, 없으면 현재 시각)
+  let timeStr = '';
+  if (logData.scheduled_at) {
+    try {
+      const d = new Date(logData.scheduled_at);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      timeStr = `${hours}:${mins}`;
+    } catch (e) {}
+  }
+  if (!timeStr) {
+    const now = new Date();
+    timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+  window.currentMedicationTime = timeStr;
+
+  // 1. 복약 팝업 카드 내부 텍스트 갱신 (종 + 날짜(요일) + 시간 + 약 이름)
+  const dateLabel = document.getElementById('med-date-label');
+  const titleText = document.getElementById('med-title-text');
+  if (dateLabel) {
+    dateLabel.innerText = `🔔 ${getTodayDateString()} ${timeStr}`;
+  }
+  if (titleText) {
+    titleText.innerText = `${medName} 먹을 시간이야!`;
+  }
+
+  // 2. 복약 완료 안내 모달용 텍스트 사전 동기화
+  updateMedicationDoneModalText(medName, `${getTodayDateString()} ${timeStr}`);
+
+  // 3. TV 화면을 복약 알림 탭으로 즉시 전환
+  if (typeof switchPage === 'function') {
+    switchPage('medication');
+  }
+
+  // 4. 3초 대기 없이 복약 알림 팝업창을 화면에 즉시 오픈!
+  const popupCard = document.getElementById('medication-popup-card');
+  const countdownBadge = document.getElementById('med-countdown-badge');
+  if (popupCard) {
+    popupCard.classList.remove('hide-card');
+  }
+  if (countdownBadge) {
+    countdownBadge.style.opacity = '0';
+  }
+
+  // 5. 토스트 알림 표시 및 딸 음성 안내 발화
+  showToast(`💊 [복약 알림] ${medName} 복약 시간입니다!`, '💊');
+  setTimeout(() => {
+    if (typeof speakMedicationNotice === 'function') {
+      speakMedicationNotice(`엄마, ${medName} 먹을 시간이야.`);
+    }
+    if (typeof sendPopupOpenedSignal === 'function') {
+      sendPopupOpenedSignal('medication');
+    }
+  }, 500);
 }
 
 // 실시간 통화 수신 처리기 (웹앱에서 [전화 통화] 또는 [영상 통화] 클릭 시 팝업 오픈)
@@ -315,6 +404,33 @@ async function updateCallLogStatus(callId, newStatus) {
     }
   } catch (err) {
     console.warn('[Supabase] updateCallLogStatus 예외:', err);
+  }
+}
+
+// 💊 medication_logs 행의 status 업데이트 (taken: 먹었어, missed: 나중에 먹을게)
+async function updateMedicationLogStatus(logId, newStatus) {
+  const targetId = logId || window.currentMedicationLogId || currentMedicationLogId;
+  if (!supabaseClient || !targetId) {
+    console.warn('[Supabase] medication_logs 업데이트 대상 ID 없음');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('medication_logs')
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', targetId);
+
+    if (error) {
+      console.warn(`[Supabase] medication_logs (id: ${targetId}) status=${newStatus} 업데이트 에러:`, error);
+    } else {
+      console.log(`[Supabase] medication_logs (id: ${targetId}) status -> '${newStatus}' 업데이트 완료 💊`);
+    }
+  } catch (err) {
+    console.warn('[Supabase] updateMedicationLogStatus 예외:', err);
   }
 }
 

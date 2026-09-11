@@ -309,10 +309,44 @@ function handleMedicationSnooze() {
   }, 3000);
 }
 
-// --- 영상통화 대화 타임라인 정리 ---
+// --- 대화 데이터셋 (영상통화 & 음성통화 연속 대화) ---
+const VIDEO_CALL_DIALOGS = [
+  { speaker: 'daughter', text: '엄마 뭐하고 계셨어요?', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', text: '드라마 보고 있었어. 저녁은 먹었니?', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', text: '네~ 퇴근하고 챙겨 먹었어요. 엄마는 저녁 드셨어요?', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', text: '나도 된장찌개 끓여서 든든하게 먹었지.', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', text: '혈압약도 잊지 말고 꼭 챙겨 드시고요!', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', text: '그래, 아까 시간 맞춰서 잘 챙겨 먹었다. 걱정 마라.', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', text: '이번 주말에 맛있는 거 사들고 갈게요, 엄마!', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', text: '바쁠 텐데 안 와도 되는데... 그래도 오면 얼굴 보고 좋지.', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', text: '얼굴 보니까 너무 좋네요. 엄마 사랑해요~', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', text: '우리 딸도 일하느라 고생 많다. 나도 사랑한다~', role: 'mother', pitch: 0.72 }
+];
+
+const VOICE_CALL_DIALOGS = [
+  { speaker: 'daughter', name: '딸 지영', text: '엄마, 목소리 잘 들려요? 오늘 밥은 맛있게 드셨어요?', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', name: '엄마', text: '응 잘 들린다. 밥도 맛있게 잘 먹었어. 지영이 너는?', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', name: '딸 지영', text: '저도 잘 먹었어요! 오늘 날씨가 쌀쌀한데 따뜻하게 입고 계시죠?', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', name: '엄마', text: '그럼~ 집 따뜻하게 보일러 틀고 잘 지내고 있단다.', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', name: '딸 지영', text: '약도 잊지 말고 제시간에 꼭 챙겨 드세요, 엄마!', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', name: '엄마', text: '그래, 아까 챙겨 먹었다. 항상 걱정해 줘서 고마워 우리 딸.', role: 'mother', pitch: 0.72 },
+  { speaker: 'daughter', name: '딸 지영', text: '네 엄마, 편안한 저녁 보내세요~ 사랑해요!', role: 'daughter', pitch: 0.95 },
+  { speaker: 'mother', name: '엄마', text: '그래, 우리 딸도 푹 쉬고 내일 힘내거라~', role: 'mother', pitch: 0.72 }
+];
+
+let voiceCallTimerInterval = null;
+let voiceCallSeconds = 0;
+
+// --- 통화 대화 타임라인 및 타이머 완전 정리 ---
 function clearConversationSequence() {
   conversationTimeouts.forEach(t => clearTimeout(t));
   conversationTimeouts = [];
+
+  clearInterval(voiceCallTimerInterval);
+  voiceCallTimerInterval = null;
+  clearInterval(callTimerInterval);
+  callTimerInterval = null;
+
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
@@ -326,6 +360,11 @@ function clearConversationSequence() {
   if (daughterBubble) daughterBubble.classList.remove('active');
   if (motherBox) motherBox.classList.remove('speaking');
   if (daughterBox) daughterBox.classList.remove('speaking');
+
+  const voiceBubble = document.getElementById('voice-call-dialog-bubble');
+  if (voiceBubble) {
+    voiceBubble.style.display = 'none';
+  }
 }
 
 // --- ⚡ [Supabase Realtime] 전역 통화 수신 [수락] 및 [거절] 핸들러 ---
@@ -342,6 +381,7 @@ function resetIncomingModalUI() {
     typeEl.innerText = isVoice ? '전화(음성) 통화 요청 중...' : '영상 통화 요청 중...';
   }
   isVoiceCallActiveInModal = false;
+  clearConversationSequence();
 }
 
 function handleGlobalCallAccept() {
@@ -374,22 +414,78 @@ function handleGlobalCallAccept() {
 
     if (reqBtns) reqBtns.style.display = 'none';
     if (activeBox) activeBox.style.display = 'flex';
-    if (typeEl) typeEl.innerText = '전화(음성) 통화 중...';
+    if (typeEl) typeEl.innerText = '전화(음성) 통화 중 · 00:01';
     isVoiceCallActiveInModal = true;
 
     showToast('📞 [음성 통화] 통화가 연결되었습니다.', '📞');
 
-    // 딸 음성 인사 재생
-    if (typeof speakText === 'function') {
-      setTimeout(() => {
-        speakText('엄마, 목소리 잘 들려요? 오늘 밥은 맛있게 드셨어요?', 0.95, 'daughter');
-      }, 500);
-    }
+    // 음성통화 실시간 타이머 시작
+    voiceCallSeconds = 1;
+    clearInterval(voiceCallTimerInterval);
+    voiceCallTimerInterval = setInterval(() => {
+      voiceCallSeconds++;
+      const mins = String(Math.floor(voiceCallSeconds / 60)).padStart(2, '0');
+      const secs = String(voiceCallSeconds % 60).padStart(2, '0');
+      if (typeEl && isVoiceCallActiveInModal) {
+        typeEl.innerText = `전화(음성) 통화 중 · ${mins}:${secs}`;
+      }
+    }, 1000);
+
+    // 📞 음성통화 연속 대화 시퀀스 시작!
+    startVoiceCallConversation();
   } else {
     // 📹 영상 통화: 팝업 닫고 5:5 라이브 대화면 영상통화 시퀀스 오픈
     closeModal('modal-incoming-call-global');
     handleCallAccept();
   }
+}
+
+// 📞 음성통화 연속 대화 시퀀스
+function startVoiceCallConversation() {
+  clearConversationSequence();
+  isVoiceCallActiveInModal = true;
+
+  const voiceBubble = document.getElementById('voice-call-dialog-bubble');
+  const speakerBadge = document.getElementById('voice-speaker-badge');
+  const speechContent = document.getElementById('voice-speech-content');
+
+  if (voiceBubble) {
+    voiceBubble.style.display = 'flex';
+  }
+
+  function playVoiceStep(index) {
+    if (!isVoiceCallActiveInModal || index >= VOICE_CALL_DIALOGS.length) {
+      // 모든 대화 완료 후에도 마지막 대화 내용이 사라지지 않고 유지!
+      return;
+    }
+
+    const item = VOICE_CALL_DIALOGS[index];
+    if (speakerBadge) speakerBadge.innerText = item.name;
+    if (speechContent) speechContent.innerText = item.text;
+
+    if (voiceBubble) {
+      if (item.speaker === 'mother') {
+        voiceBubble.classList.add('mother');
+      } else {
+        voiceBubble.classList.remove('mother');
+      }
+    }
+
+    speakText(item.text, item.pitch, item.role, null, () => {
+      if (!isVoiceCallActiveInModal) return;
+      // 다음 대화까지 0.6초 자연스러운 호흡 후 다음 대사 진행
+      const timer = setTimeout(() => {
+        playVoiceStep(index + 1);
+      }, 600);
+      conversationTimeouts.push(timer);
+    });
+  }
+
+  // 0.5초 후 첫 대화 시작
+  const initialTimer = setTimeout(() => {
+    playVoiceStep(0);
+  }, 500);
+  conversationTimeouts.push(initialTimer);
 }
 
 // 📞 음성통화 종료 (팝업 내 종료 버튼 또는 리모컨 빨간 버튼)
@@ -407,7 +503,8 @@ function endVoiceCallInModal() {
     logUserActionToSupabase('call_ended', {
       call_id: typeof currentIncomingCallId !== 'undefined' ? currentIncomingCallId : null,
       target: '우리 딸',
-      call_type: 'voice'
+      call_type: 'voice',
+      duration_seconds: voiceCallSeconds
     });
   }
 
@@ -490,68 +587,55 @@ function startMotherDaughterConversation() {
   const motherBox = document.getElementById('mother-cam-box');
   const daughterBox = document.getElementById('daughter-cam-box');
 
-  // [Step 1] 통화 연결 0.4초 후 -> 딸: "엄마 뭐하고 계셨어요?"
-  const t1 = setTimeout(() => {
-    const speech1 = "엄마 뭐하고 계셨어요?";
-    if (daughterText) daughterText.innerText = speech1;
+  const activeModal = document.getElementById('modal-videocall-active');
 
-    speakText(speech1, 0.95, 'daughter',
-      // onStart: 딸 음성이 '실제 스피커로 출력되는 순간' 말풍선과 카메라 뷰 켜기!
-      () => {
-        if (daughterBubble) daughterBubble.classList.add('active');
-        if (daughterBox) daughterBox.classList.add('speaking');
-      },
-      // onEnd: 딸 발화 완료 시 즉시 말풍선 닫고 0.25초(1초 이내) 만에 엄마 응답 시작!
-      () => {
-        if (daughterBubble) daughterBubble.classList.remove('active');
-        if (daughterBox) daughterBox.classList.remove('speaking');
+  function playStep(index) {
+    // 통화 모달이 닫혔거나 종료된 경우 중단
+    if (!activeModal || !activeModal.classList.contains('open')) {
+      return;
+    }
 
-        const t2 = setTimeout(() => {
-          // [Step 2] 엄마(70대 어르신): "드라마 보고 있었어. 저녁은 먹었니?"
-          const speech2 = "드라마 보고 있었어. 저녁은 먹었니?";
-          if (motherText) motherText.innerText = speech2;
+    if (index >= VIDEO_CALL_DIALOGS.length) {
+      // ⭐️ 핵심: 모든 대화가 끝나도 말풍선과 카메라 강조를 닫지 않고 마지막 따뜻한 대화를 화면에 온전히 유지!
+      if (daughterBox) daughterBox.classList.remove('speaking');
+      if (motherBox) motherBox.classList.remove('speaking');
+      return;
+    }
 
-          speakText(speech2, 0.72, 'mother',
-            // onStart: 엄마 음성이 출력되는 순간 말풍선 켜기 (싱크 100% 일치!)
-            () => {
-              if (motherBubble) motherBubble.classList.add('active');
-              if (motherBox) motherBox.classList.add('speaking');
-            },
-            // onEnd: 엄마 발화 완료 시 말풍선 닫고 0.25초 후 딸 마무리 대사 시작!
-            () => {
-              if (motherBubble) motherBubble.classList.remove('active');
-              if (motherBox) motherBox.classList.remove('speaking');
+    const item = VIDEO_CALL_DIALOGS[index];
 
-              const t3 = setTimeout(() => {
-                // [Step 3] 딸: "네~. 엄마는요?"
-                const speech3 = "네~. 엄마는요?";
-                if (daughterText) daughterText.innerText = speech3;
+    if (item.speaker === 'daughter') {
+      if (daughterText) daughterText.innerText = item.text;
+      if (daughterBubble) daughterBubble.classList.add('active');
+      if (daughterBox) daughterBox.classList.add('speaking');
+      if (motherBox) motherBox.classList.remove('speaking');
+    } else {
+      if (motherText) motherText.innerText = item.text;
+      if (motherBubble) motherBubble.classList.add('active');
+      if (motherBox) motherBox.classList.add('speaking');
+      if (daughterBox) daughterBox.classList.remove('speaking');
+    }
 
-                speakText(speech3, 0.95, 'daughter',
-                  () => {
-                    if (daughterBubble) daughterBubble.classList.add('active');
-                    if (daughterBox) daughterBox.classList.add('speaking');
-                  },
-                  () => {
-                    // 1.2초 후 말풍선 정리
-                    const t4 = setTimeout(() => {
-                      if (daughterBubble) daughterBubble.classList.remove('active');
-                      if (daughterBox) daughterBox.classList.remove('speaking');
-                    }, 1200);
-                    conversationTimeouts.push(t4);
-                  }
-                );
-              }, 250);
-              conversationTimeouts.push(t3);
-            }
-          );
-        }, 250);
-        conversationTimeouts.push(t2);
-      }
-    );
+    speakText(item.text, item.pitch, item.role, null, () => {
+      if (!activeModal || !activeModal.classList.contains('open')) return;
+
+      // 발화자 말하는 모션 끄기 (말풍선 자막은 그대로 유지!)
+      if (item.speaker === 'daughter' && daughterBox) daughterBox.classList.remove('speaking');
+      if (item.speaker === 'mother' && motherBox) motherBox.classList.remove('speaking');
+
+      // 0.45초 후 자연스럽게 다음 상대방 대사 시작
+      const nextTimer = setTimeout(() => {
+        playStep(index + 1);
+      }, 450);
+      conversationTimeouts.push(nextTimer);
+    });
+  }
+
+  // 통화 연결 0.4초 후 첫 대화 시작
+  const initialTimer = setTimeout(() => {
+    playStep(0);
   }, 400);
-
-  conversationTimeouts.push(t1);
+  conversationTimeouts.push(initialTimer);
 }
 
 function handleCallDecline() {

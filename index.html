@@ -360,8 +360,14 @@
         </button>
       </div>
 
-      <!-- 2. 음성 통화 진행 중일 때 표시되는 통화 종료 바 (기본 숨김) -->
+      <!-- 2. 음성 통화 진행 중일 때 표시되는 대화 자막 & 통화 종료 바 (기본 숨김) -->
       <div class="incoming-voice-active-box" id="incoming-voice-active-box" style="display: none;">
+        <!-- 음성통화 실시간 대화 자막 말풍선 -->
+        <div class="voice-call-caption-bubble" id="voice-call-dialog-bubble">
+          <span class="voice-speaker-badge" id="voice-speaker-badge">딸 지영</span>
+          <p class="voice-speech-content" id="voice-speech-content">엄마, 목소리 잘 들려요? 오늘 밥은 맛있게 드셨어요?</p>
+        </div>
+
         <button class="incoming-btn-end-voice" onclick="endVoiceCallInModal()">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67 19.42 19.42 0 0 1-2.67-3.33 19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>

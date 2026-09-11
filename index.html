@@ -9,12 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <!-- 🔊 최상위 전역 플로팅 스피커 켜기 버튼 (어떤 화면/모달 위에서도 항상 최상단에 선명하게 노출) -->
-  <button id="global-floating-audio-btn" class="global-floating-audio-btn" onclick="unlockAudioSystem(); showToast('🔊 TV 스피커 및 음성(TTS)이 활성화되었습니다.', '🔊');" title="스피커 소리 활성화">
-    <span class="audio-btn-icon">🔊</span>
-    <span class="audio-btn-label">스피커 켜기</span>
-  </button>
-
   <!-- 상단 통합 TV 네비게이션바 -->
   <nav class="tv-nav">
     <button class="tv-nav-item active" data-target="overview">서비스 소개</button>
@@ -23,7 +17,7 @@
     <button class="tv-nav-item" data-target="videocall">통화수신</button>
 
     <div class="tv-nav-right">
-      <!-- 🔊 브라우저 스피커/음성 켜기 버튼 -->
+      <!-- 🔊 브라우저 스피커/음성 켜기 버튼 (단 1개만 배치) -->
       <button id="tv-audio-toggle-btn" class="tv-nav-audio-btn" onclick="unlockAudioSystem(); showToast('🔊 TV 스피커 및 음성(TTS)이 활성화되었습니다.', '🔊');" title="스피커 활성화">
         <span>🔊 스피커 켜기</span>
       </button>
@@ -34,7 +28,8 @@
         <span>Supabase</span>
       </div>
 
-      <a href="remote.html" target="_blank" class="tv-nav-remote-btn">
+      <!-- 📱 리모컨 열기 (항상 최우선 노출) -->
+      <a href="remote.html" target="_blank" class="tv-nav-remote-btn" id="btn-open-remote">
         📱 리모컨 열기
       </a>
     </div>

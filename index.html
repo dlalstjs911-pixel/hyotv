@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>효TV - 통합 TV 서비스 소개</title>
-  <link rel="stylesheet" href="css/style.css?v=20260909_nav_compact">
+  <link rel="stylesheet" href="css/style.css?v=20260911_big_datetime">
   <!-- ⚡ Supabase 공식 실시간 클라이언트 SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -201,8 +201,8 @@
         <div class="medication-card-overlay hide-card" id="medication-popup-card">
           <div class="medication-card">
             <div class="medication-content">
-              <div class="medication-date-label">9월3일(목) 오전8시</div>
-              <h1 class="medication-title" id="med-title-text">엄마 약 먹을 시간이야!</h1>
+              <div class="medication-date-label" id="med-date-label">🔔 9월 11일 (금) 17:30</div>
+              <h1 class="medication-title" id="med-title-text">당뇨약 먹을 시간이야!</h1>
 
               <div class="medication-buttons" id="med-btn-group">
                 <button class="btn-medication primary" onclick="handleMedicationTaken()">
@@ -392,7 +392,7 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="js/main.js?v=20260909_call_sync_v2"></script>
-  <script src="js/supabase.js?v=20260909_status_fix"></script>
+  <script src="js/main.js?v=20260911_date_label"></script>
+  <script src="js/supabase.js?v=20260911_date_label"></script>
 </body>
 </html>

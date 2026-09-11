@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1280, initial-scale=1.0">
   <title>효TV - 개인화 복약 알림</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260911_big_datetime">
 </head>
 <body>
   <div class="tv-screen">
@@ -20,7 +20,8 @@
     <main class="screen-medication">
       <div class="medication-card">
         <div class="medication-content">
-          <h1 class="medication-title">엄마 약 먹었어?</h1>
+          <div class="medication-date-label" id="med-date-label">🔔 9월 11일 (금) 17:30</div>
+          <h1 class="medication-title">엄마 당뇨약 먹었어?</h1>
           
           <div class="medication-time">
             <div class="wave-icon">
@@ -28,7 +29,7 @@
               <div class="wave-bar"></div>
               <div class="wave-bar"></div>
             </div>
-            <span>10:45</span>
+            <span>17:30</span>
             <div class="wave-icon">
               <div class="wave-bar"></div>
               <div class="wave-bar"></div>
@@ -66,6 +67,11 @@
     </main>
   </div>
 
-  <script src="js/main.js"></script>
+  <!-- 실시간 알림 토스트 (Toast Message) -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/main.js?v=20260911_date_label"></script>
+  <script src="js/supabase.js?v=20260911_date_label"></script>
 </body>
 </html>

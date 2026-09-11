@@ -39,10 +39,11 @@ async function fetchLatestMedicationData() {
 
   for (const table of candidateTables) {
     try {
+      // id 기준 최신순 정렬 (created_at 또는 updated_at 없어도 안전 동작)
       const { data, error } = await supabaseClient
         .from(table)
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(1);
 
       if (!error && data && data.length > 0) {
@@ -63,31 +64,65 @@ async function fetchLatestMedicationData() {
   }
 }
 
+// 오늘 날짜 및 요일 포맷 헬퍼 (예: "9월 11일 (금)")
+function getTodayDateString() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const date = now.getDate();
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const dayName = dayNames[now.getDay()];
+  return `${month}월 ${date}일 (${dayName})`;
+}
+
 // 3. 수신된 Supabase 데이터를 효TV 화면 UI에 동적 반영
 function applyDataToHyoTvUI(item) {
   if (!item) return;
   currentMedicationId = item.id || null;
 
-  // 1) 복약 알림 시간 및 제목 업데이트
-  const dateLabel = document.querySelector('.medication-date-label');
-  const titleEl = document.getElementById('med-title-text');
+  // 오늘 날짜 및 요일 엘리먼트 자동 반영
+  const todayDateStr = getTodayDateString();
+  document.querySelectorAll('.medication-today-date, #med-today-date').forEach(el => {
+    el.innerText = todayDateStr;
+  });
 
-  if (dateLabel && (item.time || item.scheduled_time || item.scheduled_at)) {
-    const timeVal = item.time || item.scheduled_time || item.scheduled_at;
-    dateLabel.innerText = `🔔 ${timeVal}`;
+  // 1) 복약 알림 시간 파싱 (문자열 또는 자녀 웹앱의 times 배열 지원)
+  let timeVal = item.time || item.scheduled_time || item.scheduled_at;
+  if (!timeVal && Array.isArray(item.times) && item.times.length > 0) {
+    timeVal = item.times[0];
   }
 
-  if (titleEl && (item.title || item.medicine_name || item.name || item.message)) {
-    const titleVal = item.title || item.medicine_name || item.name || item.message;
-    titleEl.innerText = titleVal.includes('약') ? titleVal : `${titleVal} 복약 시간이야!`;
+  // 🔔 종이모티콘 + 날짜(요일) + 시간 한 줄 동시 표기
+  const dateLabels = document.querySelectorAll('.medication-date-label, #med-date-label');
+  const timeText = timeVal || '17:30';
+  dateLabels.forEach(el => {
+    el.innerText = `🔔 ${todayDateStr} ${timeText}`;
+  });
+
+  const titleEl = document.getElementById('med-title-text') || document.querySelector('.medication-title');
+  const directTimeSpan = document.querySelector('.medication-time span');
+  if (directTimeSpan && timeVal) {
+    directTimeSpan.innerText = timeVal;
   }
 
-  // 2) 만약 새 알림이 'pending' 상태이면 효TV에 즉시 팝업 오픈 트리거!
-  if (item.status === 'pending' || item.is_active === true) {
-    showToast(`⚡ Supabase 새 알림 수신: ${item.title || '복약 시간'}`, '💊');
-    if (typeof triggerMedicationNotice === 'function') {
-      triggerMedicationNotice();
+  // 2) 약 이름 또는 제목 파싱
+  const titleVal = item.name || item.title || item.medicine_name || item.message;
+  if (titleEl && titleVal) {
+    const formattedTitle = titleVal.includes('약') ? `${titleVal} 먹을 시간이야!` : `${titleVal} 복약 시간이야!`;
+    titleEl.innerText = formattedTitle;
+    if (typeof currentMedicationNoticeText !== 'undefined') {
+      currentMedicationNoticeText = `엄마 ${titleVal} 먹을 시간이야`;
     }
+  }
+
+  // 3) 새 알림 수신 시 효TV에 복약 화면 자동 전환 & 팝업 오픈 트리거 및 토스트 알림!
+  const displayTitle = titleVal || '복약 시간';
+  const displayTime = timeVal ? ` (${timeVal})` : '';
+  showToast(`⚡ Supabase 알림 수신: ${displayTitle}${displayTime}`, '💊');
+
+  if (typeof switchPage === 'function') {
+    switchPage('medication');
+  } else if (typeof triggerMedicationNotice === 'function') {
+    triggerMedicationNotice();
   }
 }
 

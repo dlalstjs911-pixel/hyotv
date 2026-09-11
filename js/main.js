@@ -103,12 +103,15 @@ function speakText(text, pitch = 0.95, role = 'daughter', onStart = null, onEnd 
   window.speechSynthesis.speak(utterance);
 }
 
+let currentMedicationNoticeText = "엄마 약 먹을 시간이야";
+
 // 복약 알림 멘트 발화 (중년 딸 목소리)
-function speakMedicationNotice() {
+function speakMedicationNotice(customText) {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
-  speakText("엄마 약 먹을 시간이야", 0.95, 'daughter');
+  const textToSpeak = customText || currentMedicationNoticeText || "엄마 약 먹을 시간이야";
+  speakText(textToSpeak, 0.95, 'daughter');
 }
 
 // --- 복약 알림: 3초 TV 시청 후 팝업 카드 등장 -> 0.5초 후 40대 여성 음성 송출 ---
@@ -481,6 +484,17 @@ function switchPage(pageId) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 복약 알림 🔔 오늘 날짜(요일) 시간 자동 표기 (예: "🔔 9월 11일 (금) 17:30")
+  const now = new Date();
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const todayStr = `${now.getMonth() + 1}월 ${now.getDate()}일 (${dayNames[now.getDay()]})`;
+  document.querySelectorAll('.medication-date-label, #med-date-label').forEach(el => {
+    const currentText = el.innerText || '';
+    const matchTime = currentText.match(/\d{1,2}:\d{2}/);
+    const timeStr = matchTime ? matchTime[0] : '17:30';
+    el.innerText = `🔔 ${todayStr} ${timeStr}`;
+  });
+
   const navItems = document.querySelectorAll('.tv-nav-item');
   navItems.forEach(item => {
     item.addEventListener('click', () => {
